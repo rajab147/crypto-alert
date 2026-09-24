@@ -23,28 +23,49 @@ def get_top_symbols():
     for page in range(1, 6):
         url = "https://api.coingecko.com/api/v3/coins/markets"
         params = {"vs_currency": "usd", "order": "market_cap_desc", "per_page": 100, "page": page}
-        data = requests.get(url, params=params).json()
-        if not isinstance(data, list):
+        try:
+            r = requests.get(url, params=params, timeout=10)
+            if r.status_code != 200:
+                break
+            data = r.json()
+            if not isinstance(data, list):
+                break
+            all_symbols.extend([c["symbol"].upper() for c in data])
+        except Exception as e:
+            print(f"CoinGecko API Error: {e}")
             break
-        all_symbols.extend([c["symbol"].upper() for c in data])
         time.sleep(0.5)
     return all_symbols[:TOP_N]
 
 def get_binance_usdt_pairs():
     url = "https://data-api.binance.vision/api/v3/exchangeInfo"
-    r = requests.get(url)
-    print("Status code:", r.status_code)
-    print("Response (first 500 chars):", r.text[:500])
-    data = r.json()
-    return {s["baseAsset"] for s in data["symbols"] if s["quoteAsset"] == "USDT" and s["status"] == "TRADING"}
+    try:
+        r = requests.get(url, timeout=10)
+        print("Status code:", r.status_code)
+        print("Response (first 500 chars):", r.text[:500])
+        
+        if r.status_code != 200:
+            return set()
+            
+        data = r.json()
+        if not isinstance(data, dict) or "symbols" not in data:
+            return set()
+            
+        return {s["baseAsset"] for s in data["symbols"] if s["quoteAsset"] == "USDT" and s["status"] == "TRADING"}
+    except Exception as e:
+        print(f"Binance API Error: {e}")
+        return set()
 
 def get_klines(symbol, interval, limit=3):
     url = "https://data-api.binance.vision/api/v3/klines"
     params = {"symbol": f"{symbol}USDT", "interval": interval, "limit": limit}
-    r = requests.get(url, params=params)
-    if r.status_code != 200:
+    try:
+        r = requests.get(url, params=params, timeout=10)
+        if r.status_code != 200:
+            return None
+        return r.json()
+    except Exception:
         return None
-    return r.json()
 
 def check_sweep(candles):
     prev = candles[-2]
@@ -63,6 +84,11 @@ def main():
     state = load_state()
     symbols = get_top_symbols()
     binance_pairs = get_binance_usdt_pairs()
+    
+    if not binance_pairs:
+        print("بائننس سے پیئرز فیچ نہیں ہو سکے، اگली کوشش میں دیکھیں گے۔")
+        return
+        
     valid_symbols = [s for s in symbols if s in binance_pairs]
 
     new_daily_alerts = []
@@ -89,7 +115,10 @@ def main():
             message += "🕐 Daily Timeframe:\n" + "\n".join(new_daily_alerts) + "\n\n"
         if new_h4_alerts:
             message += "⏱ 4H Timeframe:\n" + "\n".join(new_h4_alerts)
-        requests.post(f"https://ntfy.sh/{NTFY_TOPIC}", data=message.encode("utf-8"))
+        try:
+            requests.post(f"https://ntfy.sh/{NTFY_TOPIC}", data=message.encode("utf-8"), timeout=10)
+        except Exception as e:
+            print(f"Ntfy Error: {e}")
         print(message)
     else:
         print("کوئی نیا سویپ نہیں ملا اس بار")
@@ -98,3 +127,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
