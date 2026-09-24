@@ -5,7 +5,7 @@ import json
 
 NTFY_TOPIC = os.environ["NTFY_TOPIC"]
 TOP_N = 500
-BUFFER = 0.0015
+BUFFER = 0.0030
 STATE_FILE = "sweep_state.json"
 
 def load_state():
