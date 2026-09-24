@@ -32,7 +32,10 @@ def get_top_symbols():
 
 def get_binance_usdt_pairs():
     url = "https://data-api.binance.vision/api/v3/exchangeInfo"
-    data = requests.get(url).json()
+    r = requests.get(url)
+    print("Status code:", r.status_code)
+    print("Response (first 500 chars):", r.text[:500])
+    data = r.json()
     return {s["baseAsset"] for s in data["symbols"] if s["quoteAsset"] == "USDT" and s["status"] == "TRADING"}
 
 def get_klines(symbol, interval, limit=3):
