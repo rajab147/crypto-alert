@@ -1,9 +1,12 @@
-import requests
-import pandas as pd
-import numpy as np
-import time
+import os
 import sys
+import json
+import time
 import argparse
+
+import requests
+import numpy as np
+import pandas as pd
 
 # --- Configuration ---
 BUFFER = 0.001
@@ -18,112 +21,159 @@ H4_LOOKBACK = 20
 DAILY_HOURS = 48
 H4_HOURS = 24
 
-# --- OKX API Configuration ---
+TOP_N = 500
+REQUEST_DELAY = 0.12          # ریٹ لمٹ سے بچاؤ (سیکنڈ)
+MAX_SIGNAL_AGE_CANDLES = 1    # سگنل صرف تازہ بند کینڈل پر (کینڈلز میں)
+
+# --- OKX ---
 OKX_BASE_URL = "https://www.okx.com"
+INTERVAL_MAP = {"1d": "1Dutc", "4h": "4H", "1h": "1H", "30m": "30m"}  # 1Dutc = UTC ڈیلی کینڈل
+TF_DELTA = {
+    "1D": pd.Timedelta(days=1),
+    "4H": pd.Timedelta(hours=4),
+    "1H": pd.Timedelta(hours=1),
+    "30M": pd.Timedelta(minutes=30),
+}
 
-# --- NTFY Configuration ---
-NTFY_TOPIC = "ChartMaster786x7k2p9"
-NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
+# --- NTFY (ٹاپک ماحولیاتی متغیر سے) ---
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
+NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}" if NTFY_TOPIC else ""
 
-SIGNALED_SWEEPS = set()
+# --- ڈپلیکیٹ الرٹ سے بچاؤ (فائل میں محفوظ) ---
+STATE_FILE = os.environ.get("STATE_FILE", "signaled.json")
+SIGNALED = {}  # key -> expiry (ISO string)
 
-def get_top_500_symbols():
-    """OKX سے ٹاپ 500 USDT فیوچرز حاصل کرنا (بلحاظ 24 گھنٹے والیوم)"""
-    print("Fetching Top 500 USDT Perpetual Symbols from OKX...")
+
+def load_state():
+    global SIGNALED
     try:
-        url = f"{OKX_BASE_URL}/api/v5/market/tickers?instType=SWAP"
-        r = requests.get(url, timeout=20)
-        
-        # JSON پارسنگ سے پہلے چیک کریں کہ جواب ٹھیک ہے یا نہیں
-        if r.status_code != 200:
-            print(f"OKX HTTP Error: {r.status_code}")
-            return get_default_symbols()
-            
+        with open(STATE_FILE, "r") as f:
+            SIGNALED = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        SIGNALED = {}
+    prune_state()
+
+
+def prune_state():
+    """ایکسپائر ہو چکی انٹریز ہٹائیں"""
+    now = pd.Timestamp.now(tz="UTC")
+    keep = {}
+    for k, v in SIGNALED.items():
+        try:
+            if pd.Timestamp(v) >= now:
+                keep[k] = v
+        except Exception:
+            pass
+    SIGNALED.clear()
+    SIGNALED.update(keep)
+
+
+def save_state():
+    try:
+        tmp = STATE_FILE + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump(SIGNALED, f)
+        os.replace(tmp, STATE_FILE)
+    except Exception as e:
+        print(f"State save error: {e}")
+
+
+def okx_get(path, params=None, retries=3):
+    """ریٹ لمٹ اور 429 ہینڈلنگ کے ساتھ GET"""
+    url = f"{OKX_BASE_URL}{path}"
+    for i in range(retries):
+        time.sleep(REQUEST_DELAY)
+        try:
+            r = requests.get(url, params=params, timeout=15)
+        except requests.RequestException:
+            time.sleep(1 + i)
+            continue
+        if r.status_code == 429:
+            time.sleep(1 + i)
+            continue
+        return r
+    return None
+
+
+def get_default_symbols():
+    return ["SOLUSDT", "NEARUSDT", "SUIUSDT", "APTUSDT", "ARBUSDT",
+            "OPUSDT", "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "ADAUSDT"]
+
+
+def get_top_symbols():
+    """OKX سے USDT پرپیچوئل سکے (ڈالر والیوم کے لحاظ سے)"""
+    print(f"Fetching top {TOP_N} USDT perpetual symbols from OKX...")
+    r = okx_get("/api/v5/market/tickers", {"instType": "SWAP"})
+    if r is None or r.status_code != 200:
+        print("OKX request failed. Using default symbols.")
+        return get_default_symbols()
+    try:
         data = r.json()
-        
-        if data.get('code') != '0':
+        if data.get("code") != "0":
             print(f"OKX API Error: {data.get('msg')}")
             return get_default_symbols()
 
-        tickers = data['data']
-        
-        # صرف USDT والے SWAP فلٹر کریں اور والیوم کے لحاظ سے سارٹ کریں
-        usdt_tickers = [t for t in tickers if t['instId'].endswith('-USDT-SWAP')]
-        usdt_tickers.sort(key=lambda x: float(x.get('volCcy24h', 0)), reverse=True)
+        tickers = [t for t in data["data"] if t["instId"].endswith("-USDT-SWAP")]
 
-        # OKX فارمیٹ (BTC-USDT-SWAP) کو Binance/Bybit فارمیٹ (BTCUSDT) میں تبدیل کریں
-        top_500 = [t['instId'].replace('-USDT-SWAP', 'USDT') for t in usdt_tickers[:500]]
-        print(f"Successfully fetched {len(top_500)} symbols.")
-        return top_500
+        def usd_vol(t):
+            try:
+                return float(t.get("volCcy24h") or 0) * float(t.get("last") or 0)
+            except ValueError:
+                return 0.0
+
+        tickers.sort(key=usd_vol, reverse=True)
+        symbols = [t["instId"].replace("-USDT-SWAP", "USDT") for t in tickers[:TOP_N]]
+        print(f"Fetched {len(symbols)} symbols.")
+        return symbols
     except Exception as e:
-        print(f"Error fetching symbols: {e}. Using default 10 symbols.")
+        print(f"Error parsing symbols: {e}. Using default symbols.")
         return get_default_symbols()
 
-def get_default_symbols():
-    return ["SOLUSDT", "NEARUSDT", "SUIUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "ADAUSDT"]
 
 def send_ntfy_notification(title, message, tags="chart"):
-    """NTFY کے ذریعے موبائل پر نوٹیفکیشن بھیجنا"""
+    if not NTFY_URL:
+        print("   -> NTFY_TOPIC not set, notification skipped.")
+        return
     try:
-        headers = {"Title": title, "Tags": tags, "Priority": "high"}
-        response = requests.post(NTFY_URL, data=message.encode('utf-8'), headers=headers, timeout=10)
-        if response.status_code == 200:
-            print(f"   -> NTFY Notification Sent Successfully!")
+        headers = {"Title": title.encode("utf-8"), "Tags": tags, "Priority": "high"}
+        r = requests.post(NTFY_URL, data=message.encode("utf-8"),
+                          headers=headers, timeout=10)
+        if r.status_code == 200:
+            print("   -> NTFY notification sent.")
+        else:
+            print(f"   -> NTFY HTTP {r.status_code}")
     except Exception as e:
         print(f"   -> NTFY Error: {e}")
 
+
 def get_data(symbol, interval, limit=200):
-    """OKX سے OHLCV ڈیٹا حاصل کرنا"""
-    # OKX کے انٹرویل فارمیٹ میں تبدیلی
-    interval_map = {"1d": "1D", "4h": "4H", "1h": "1H", "30m": "30m"}
-    okx_interval = interval_map.get(interval, "30m")
-    
-    # OKX فارمیٹ میں سیمبول بنانا
-    okx_symbol = symbol.replace('USDT', '-USDT-SWAP')
-
+    """OKX سے مکمل شدہ کینڈلز"""
     params = {
-        "instId": okx_symbol,
-        "bar": okx_interval,
-        "limit": limit
+        "instId": symbol[:-4] + "-USDT-SWAP",
+        "bar": INTERVAL_MAP.get(interval, "30m"),
+        "limit": limit,
     }
-
+    r = okx_get("/api/v5/market/candles", params)
+    if r is None or r.status_code != 200:
+        return pd.DataFrame()
     try:
-        url = f"{OKX_BASE_URL}/api/v5/market/candles"
-        r = requests.get(url, params=params, timeout=15)
-        
-        if r.status_code != 200:
-            return pd.DataFrame()
-            
         data = r.json()
-        
-        if data.get('code') != '0':
+        if data.get("code") != "0" or not data.get("data"):
             return pd.DataFrame()
 
-        klines = data['data']
-        if not klines:
-            return pd.DataFrame()
-
-        # OKX ڈیٹا کو نئے سے پرانے کی ترتیب میں دیتا ہے، اسے ریورس کریں
-        klines = klines[::-1]
-
-        # OKX کالمز: [ts, o, h, l, c, vol, volCcy, volCcyQuote, confirm]
-        df = pd.DataFrame(klines, columns=["time", "open", "high", "low", "close", "volume", "volCcy", "volCcyQuote", "confirm"])
-        
+        klines = data["data"][::-1]  # پرانے سے نئے
+        df = pd.DataFrame(klines, columns=[
+            "time", "open", "high", "low", "close",
+            "volume", "volCcy", "volCcyQuote", "confirm"])
         df["time"] = pd.to_datetime(df["time"].astype(float), unit="ms", utc=True)
-        
         for c in ["open", "high", "low", "close", "volume"]:
             df[c] = pd.to_numeric(df[c])
-
-        # صرف مکمل شدہ کینڈلز رکھیں (confirm == '1')
-        df = df[df["confirm"] == '1']
-
+        df = df[df["confirm"] == "1"]
         df = df[["time", "open", "high", "low", "close", "volume"]]
-        df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
-
-        return df
-
-    except Exception as e:
+        return df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
+    except Exception:
         return pd.DataFrame()
+
 
 def add_indicators(df):
     df = df.copy()
@@ -136,153 +186,176 @@ def add_indicators(df):
     rs = avg_gain / avg_loss
     df["rsi"] = 100 - (100 / (1 + rs))
 
-    df["vol_avg"] = df["volume"].rolling(VOL_PERIOD).mean()
+    # موجودہ کینڈل کو اوسط سے باہر رکھا گیا ہے
+    df["vol_avg"] = df["volume"].rolling(VOL_PERIOD).mean().shift(1)
     df["vol_ok"] = df["volume"] >= df["vol_avg"] * VOL_MULT
-
     return df
+
 
 def find_sweeps(df, lookback, hours, tf):
     high = df["high"].values
     low = df["low"].values
     close = df["close"].values
-    time_series = df["time"]
+    times = df["time"]
 
     old_high = df["high"].rolling(lookback, min_periods=lookback).max().shift(1).values
     old_low = df["low"].rolling(lookback, min_periods=lookback).min().shift(1).values
 
-    high_mask = (high > old_high) & (close < old_high * (1 - BUFFER))
-    low_mask = (low < old_low) & (close > old_low * (1 + BUFFER))
-    high_mask = np.nan_to_num(high_mask, nan=False).astype(bool)
-    low_mask = np.nan_to_num(low_mask, nan=False).astype(bool)
+    with np.errstate(invalid="ignore"):
+        high_mask = (high > old_high) & (close < old_high * (1 - BUFFER))
+        low_mask = (low < old_low) & (close > old_low * (1 + BUFFER))
 
     sweeps = []
     delta = pd.Timedelta(hours=hours)
 
     for i in np.where(high_mask)[0]:
-        t = time_series.iloc[i]
-        sweeps.append({"time": t, "type": "HIGH", "extreme": high[i], "until": t + delta, "tf": tf})
-
+        t = times.iloc[i]
+        sweeps.append({"time": t, "type": "HIGH", "extreme": high[i],
+                       "until": t + delta, "tf": tf})
     for i in np.where(low_mask)[0]:
-        t = time_series.iloc[i]
-        sweeps.append({"time": t, "type": "LOW", "extreme": low[i], "until": t + delta, "tf": tf})
+        t = times.iloc[i]
+        sweeps.append({"time": t, "type": "LOW", "extreme": low[i],
+                       "until": t + delta, "tf": tf})
 
     sweeps.sort(key=lambda x: x["time"])
     return sweeps
 
-def check_live_signal(df, active_sweeps, symbol, tf):
+
+def check_live_signal(df, active_sweeps, symbol, tf, now):
     if len(df) < 2:
         return
 
-    last_candle = df.iloc[-1]
-    t = last_candle["time"]
-    r = last_candle["rsi"]
-    vol_ok = last_candle["vol_ok"]
-    close = last_candle["close"]
+    last = df.iloc[-1]
+    t = last["time"]
+    r = last["rsi"]
+    close = last["close"]
 
-    if pd.isna(r) or pd.isna(last_candle["vol_avg"]) or not vol_ok:
+    if pd.isna(r) or pd.isna(last["vol_avg"]) or not last["vol_ok"]:
+        return
+
+    # صرف تازہ بند ہوئی کینڈل پر سگنل
+    candle_close = t + TF_DELTA[tf]
+    if now - candle_close > TF_DELTA[tf] * MAX_SIGNAL_AGE_CANDLES:
         return
 
     for sweep in active_sweeps:
-        sweep_key = f"{symbol}_{tf}_{sweep['time']}_{sweep['type']}"
+        # سگنل کینڈل سویپ کینڈل کے بند ہونے کے بعد کی ہو
+        if t < sweep["time"] + TF_DELTA[sweep["tf"]]:
+            continue
 
-        if sweep_key in SIGNALED_SWEEPS:
+        key = f"{symbol}|{tf}|{sweep['tf']}|{sweep['time'].isoformat()}|{sweep['type']}"
+        if key in SIGNALED:
             continue
 
         if sweep["type"] == "LOW":
-            if r > RSI_OS: continue
+            if r > RSI_OS:
+                continue
             entry = close
             sl = sweep["extreme"] * (1 - BUFFER)
             risk = entry - sl
-            if risk <= 0: continue
-
-            SIGNALED_SWEEPS.add(sweep_key)
-            tp1, tp2, tp3 = entry + risk * 1, entry + risk * 2, entry + risk * 3
-
+            if risk <= 0:
+                continue
+            tps = [entry + risk * m for m in (1, 2, 3)]
             title = f"🚀 LONG: {symbol} ({tf})"
-            msg = f"Entry: {entry:.4f}\nSL: {sl:.4f}\nTP1: {tp1:.4f}\nTP2: {tp2:.4f}\nTP3: {tp3:.4f}"
-            print(f"\n{title}\n{msg}")
-            send_ntfy_notification(title, msg, tags="rocket,chart_with_upwards_trend")
-
-        else:  # HIGH sweep
-            if r < RSI_OB: continue
+            tags = "rocket,chart_with_upwards_trend"
+        else:
+            if r < RSI_OB:
+                continue
             entry = close
             sl = sweep["extreme"] * (1 + BUFFER)
             risk = sl - entry
-            if risk <= 0: continue
-
-            SIGNALED_SWEEPS.add(sweep_key)
-            tp1, tp2, tp3 = entry - risk * 1, entry - risk * 2, entry - risk * 3
-
+            if risk <= 0:
+                continue
+            tps = [entry - risk * m for m in (1, 2, 3)]
             title = f"🔻 SHORT: {symbol} ({tf})"
-            msg = f"Entry: {entry:.4f}\nSL: {sl:.4f}\nTP1: {tp1:.4f}\nTP2: {tp2:.4f}\nTP3: {tp3:.4f}"
-            print(f"\n{title}\n{msg}")
-            send_ntfy_notification(title, msg, tags="arrow_down,chart_with_downwards_trend")
+            tags = "arrow_down,chart_with_downwards_trend"
+
+        SIGNALED[key] = sweep["until"].isoformat()
+        save_state()
+
+        msg = (f"Sweep: {sweep['tf']} {sweep['type']}\n"
+               f"Entry: {entry:.4f}\nSL: {sl:.4f}\n"
+               f"TP1: {tps[0]:.4f}\nTP2: {tps[1]:.4f}\nTP3: {tps[2]:.4f}")
+        print(f"\n{title}\n{msg}")
+        send_ntfy_notification(title, msg, tags=tags)
+
+
+def scan_symbol(symbol, now):
+    daily = get_data(symbol, "1d")
+    h4 = get_data(symbol, "4h")
+    if daily.empty or h4.empty:
+        return 0
+
+    all_sweeps = (find_sweeps(daily, DAILY_LOOKBACK, DAILY_HOURS, "1D")
+                  + find_sweeps(h4, H4_LOOKBACK, H4_HOURS, "4H"))
+    active = [s for s in all_sweeps if s["until"] >= now]
+    if not active:
+        return 0
+
+    # 1H اور 30M صرف تب جب ایکٹو سویپ ہو
+    h1 = get_data(symbol, "1h")
+    if not h1.empty:
+        check_live_signal(add_indicators(h1), active, symbol, "1H", now)
+
+    m30 = get_data(symbol, "30m")
+    if not m30.empty:
+        check_live_signal(add_indicators(m30), active, symbol, "30M", now)
+
+    return len(active)
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Liquidity Sweep Live Scanner (OKX Version)")
-    parser.add_argument("--once", action="store_true", help="Run one full scan and exit (for GitHub Actions)")
-    parser.add_argument("--test-notify", action="store_true", help="Send a test NTFY notification and exit")
+    parser = argparse.ArgumentParser(description="Liquidity Sweep Live Scanner (OKX)")
+    parser.add_argument("--once", action="store_true",
+                        help="ایک اسکین کر کے بند (GitHub Actions کے لیے)")
+    parser.add_argument("--test-notify", action="store_true",
+                        help="ٹیسٹ نوٹیفکیشن بھیج کر بند")
     args = parser.parse_args()
 
     if args.test_notify:
-        send_ntfy_notification("Test Notification", "This is a test message from the OKX scanner.")
+        send_ntfy_notification("Test Notification", "Test message from the OKX scanner.")
         sys.exit(0)
 
     print("=" * 65)
-    print("LIQUIDITY SWEEP LIVE SCANNER (OKX Version)")
+    print("LIQUIDITY SWEEP LIVE SCANNER (OKX)")
     print("=" * 65)
 
-    if not args.once:
-        send_ntfy_notification("Scanner Started", "OKX Scanner is running continuously.", tags="white_check_mark")
+    if not NTFY_TOPIC:
+        print("WARNING: NTFY_TOPIC environment variable is not set.")
 
-    SYMBOLS = get_top_500_symbols()
-    print(f"Scanning {len(SYMBOLS)} symbols...\n")
+    load_state()
+
+    if not args.once:
+        send_ntfy_notification("Scanner Started", "OKX Scanner is running continuously.",
+                               tags="white_check_mark")
+
+    symbols = get_top_symbols()
+    print(f"Scanning {len(symbols)} symbols...\n")
 
     start_time = time.time()
     MAX_RUNTIME = 5.5 * 3600
 
     while True:
-        if not args.once and (time.time() - start_time > MAX_RUNTIME):
-            print("\nApproaching GitHub Actions time limit. Exiting gracefully...")
+        if not args.once and time.time() - start_time > MAX_RUNTIME:
+            print("\nApproaching time limit. Exiting gracefully...")
             sys.exit(0)
 
         try:
-            current_utc = pd.Timestamp.now(tz='UTC')
-            print(f"\n[{current_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC] Scanning {len(SYMBOLS)} coins...")
+            now = pd.Timestamp.now(tz="UTC")
+            print(f"\n[{now.strftime('%Y-%m-%d %H:%M:%S')} UTC] Scanning {len(symbols)} coins...")
+            prune_state()
 
-            total_active_sweeps = 0
+            total_active = 0
+            for symbol in symbols:
+                try:
+                    total_active += scan_symbol(symbol, now)
+                except Exception as e:
+                    print(f"   {symbol} error: {e}")
 
-            for symbol in SYMBOLS:
-                daily = get_data(symbol, "1d")
-                h4 = get_data(symbol, "4h")
-                h1 = get_data(symbol, "1h")
-                m30 = get_data(symbol, "30m")
-
-                if daily.empty or h4.empty or h1.empty or m30.empty:
-                    continue
-
-                daily_sweeps = find_sweeps(daily, DAILY_LOOKBACK, DAILY_HOURS, "1D")
-                h4_sweeps = find_sweeps(h4, H4_LOOKBACK, H4_HOURS, "4H")
-
-                all_sweeps = daily_sweeps + h4_sweeps
-                all_sweeps.sort(key=lambda x: x["time"])
-
-                active_sweeps = [s for s in all_sweeps if s["until"] >= current_utc]
-                total_active_sweeps += len(active_sweeps)
-
-                if not active_sweeps:
-                    continue
-
-                h1 = add_indicators(h1)
-                m30 = add_indicators(m30)
-
-                check_live_signal(h1, active_sweeps, symbol, "1H")
-                check_live_signal(m30, active_sweeps, symbol, "30M")
-
-            print(f"   Status: Scanned {len(SYMBOLS)} coins. Active Sweeps: {total_active_sweeps}")
+            print(f"   Status: Scanned {len(symbols)} coins. Active sweeps: {total_active}")
 
             if args.once:
-                print("Single scan complete (--once flag detected). Exiting...")
+                print("Single scan complete. Exiting...")
                 sys.exit(0)
 
             print("   Waiting 5 minutes for next scan...")
@@ -292,5 +365,7 @@ def main():
             print(f"\n⚠️ Error in main loop: {e}")
             time.sleep(60)
 
+
 if __name__ == "__main__":
     main()
+        
