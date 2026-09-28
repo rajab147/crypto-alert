@@ -18,7 +18,9 @@ H4_LOOKBACK = 20
 DAILY_HOURS = 48
 H4_HOURS = 24
 
-URL = "https://fapi.binance.com/fapi/v1/klines"
+# --- Bybit API Configuration ---
+BYBIT_KLINE_URL = "https://api.bybit.com/v5/market/kline"
+BYBIT_TICKER_URL = "https://api.bybit.com/v5/market/tickers"
 
 # --- NTFY Configuration ---
 NTFY_TOPIC = "ChartMaster786x7k2p9"
@@ -28,21 +30,22 @@ NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 SIGNALED_SWEEPS = set()
 
 def get_top_500_symbols():
-    """بائننس سے ٹاپ 500 فیوچرز کوئنز حاصل کرنا (بلحاظ 24 گھنٹے والیوم)"""
-    print("Fetching Top 500 USDT Perpetual Symbols from Binance...")
+    """Bybit سے ٹاپ 500 لینیئر فیوچرز کوئنز حاصل کرنا (بلحاظ 24 گھنٹے والیوم)"""
+    print("Fetching Top 500 USDT Linear Perpetual Symbols from Bybit...")
     try:
-        exchange_info = requests.get("https://fapi.binance.com/fapi/v1/exchangeInfo", timeout=20).json()
-        valid_symbols = [
-            s['symbol'] for s in exchange_info['symbols'] 
-            if s['contractType'] == 'PERPETUAL' and s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING'
-        ]
-        
-        ticker_data = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", timeout=20).json()
-        filtered_tickers = [t for t in ticker_data if t['symbol'] in valid_symbols]
-        
-        filtered_tickers.sort(key=lambda x: float(x['quoteVolume']), reverse=True)
-        
-        top_500 = [t['symbol'] for t in filtered_tickers[:500]]
+        params = {"category": "linear"}
+        response = requests.get(BYBIT_TICKER_URL, params=params, timeout=20)
+        data = response.json()
+
+        if data.get('retCode') != 0:
+            raise Exception(f"Bybit API Error: {data.get('retMsg')}")
+
+        # صرف USDT والے پیئرز فلٹر کریں اور والیوم کے لحاظ سے سارٹ کریں
+        tickers = data['result']['list']
+        usdt_tickers = [t for t in tickers if t['symbol'].endswith('USDT')]
+        usdt_tickers.sort(key=lambda x: float(x['turnover24h']), reverse=True)
+
+        top_500 = [t['symbol'] for t in usdt_tickers[:500]]
         print(f"Successfully fetched {len(top_500)} symbols.")
         return top_500
     except Exception as e:
@@ -60,11 +63,20 @@ def send_ntfy_notification(title, message, tags="chart"):
         print(f"   -> NTFY Error: {e}")
 
 def get_data(symbol, interval, limit=200):
-    """ڈیٹا حاصل کرنا (Rate Limit سے بچنے کے لیے 0.15 سیکنڈ کا وقفہ)"""
-    end = int(time.time() * 1000)
-    params = {"symbol": symbol, "interval": interval, "endTime": end, "limit": limit}
+    """Bybit سے OHLCV ڈیٹا حاصل کرنا"""
+    # Bybit کے انٹرویل فارمیٹ میں تبدیلی
+    interval_map = {"1d": "D", "4h": "240", "1h": "60", "30m": "30"}
+    bybit_interval = interval_map.get(interval, "30")
+
+    params = {
+        "category": "linear",
+        "symbol": symbol,
+        "interval": bybit_interval,
+        "limit": limit
+    }
+
     try:
-        r = requests.get(URL, params=params, timeout=15)
+        r = requests.get(BYBIT_KLINE_URL, params=params, timeout=15)
         if r.status_code == 429:
             print("Rate limit hit! Sleeping for 10 seconds...")
             time.sleep(10)
@@ -75,15 +87,19 @@ def get_data(symbol, interval, limit=200):
 
     time.sleep(0.15) # API Rate limit سے بچنے کے لیے لازمی وقفہ
 
-    if not isinstance(data, list) or len(data) == 0:
+    if data.get('retCode') != 0:
         return pd.DataFrame()
 
-    df = pd.DataFrame(data, columns=[
-        "time", "open", "high", "low", "close", "volume",
-        "close_time", "quote_volume", "trades", "buy_base", "buy_quote", "ignore"
-    ])
-    
-    df["time"] = pd.to_datetime(df["time"], unit="ms", utc=True)
+    klines = data['result']['list']
+    if not klines:
+        return pd.DataFrame()
+
+    # Bybit ڈیٹا کو نئے سے پرانے کی ترتیب میں دیتا ہے، اس لیے اسے ریورس کریں
+    klines = klines[::-1]
+
+    df = pd.DataFrame(klines, columns=["time", "open", "high", "low", "close", "volume", "turnover"])
+    df["time"] = pd.to_datetime(df["time"].astype(float), unit="ms", utc=True)
+
     for c in ["open", "high", "low", "close", "volume"]:
         df[c] = pd.to_numeric(df[c])
 
@@ -154,7 +170,7 @@ def check_live_signal(df, active_sweeps, symbol, tf):
 
     for sweep in active_sweeps:
         sweep_key = f"{symbol}_{tf}_{sweep['time']}_{sweep['type']}"
-        
+
         if sweep_key in SIGNALED_SWEEPS:
             continue
 
@@ -164,10 +180,10 @@ def check_live_signal(df, active_sweeps, symbol, tf):
             sl = sweep["extreme"] * (1 - BUFFER)
             risk = entry - sl
             if risk <= 0: continue
-            
+
             SIGNALED_SWEEPS.add(sweep_key)
             tp1, tp2, tp3 = entry + risk * 1, entry + risk * 2, entry + risk * 3
-            
+
             title = f"🚀 LONG: {symbol} ({tf})"
             msg = f"Entry: {entry:.4f}\nSL: {sl:.4f}\nTP1: {tp1:.4f}\nTP2: {tp2:.4f}\nTP3: {tp3:.4f}"
             print(f"\n{title}\n{msg}")
@@ -182,41 +198,36 @@ def check_live_signal(df, active_sweeps, symbol, tf):
 
             SIGNALED_SWEEPS.add(sweep_key)
             tp1, tp2, tp3 = entry - risk * 1, entry - risk * 2, entry - risk * 3
-            
+
             title = f"🔻 SHORT: {symbol} ({tf})"
             msg = f"Entry: {entry:.4f}\nSL: {sl:.4f}\nTP1: {tp1:.4f}\nTP2: {tp2:.4f}\nTP3: {tp3:.4f}"
             print(f"\n{title}\n{msg}")
             send_ntfy_notification(title, msg, tags="arrow_down,chart_with_downwards_trend")
 
 def main():
-    # --- یہاں argparse کا اضافہ کیا گیا ہے ---
-    parser = argparse.ArgumentParser(description="Liquidity Sweep Live Scanner")
+    parser = argparse.ArgumentParser(description="Liquidity Sweep Live Scanner (Bybit Version)")
     parser.add_argument("--once", action="store_true", help="Run one full scan and exit (for GitHub Actions)")
     parser.add_argument("--test-notify", action="store_true", help="Send a test NTFY notification and exit")
     args = parser.parse_args()
 
-    # اگر ٹیسٹ نوٹیفکیشن کا کمانڈ دیا گیا ہو
     if args.test_notify:
-        send_ntfy_notification("Test Notification", "This is a test message from the scanner.")
+        send_ntfy_notification("Test Notification", "This is a test message from the Bybit scanner.")
         sys.exit(0)
 
     print("=" * 65)
-    print("LIQUIDITY SWEEP LIVE SCANNER (GitHub Actions Version)")
+    print("LIQUIDITY SWEEP LIVE SCANNER (Bybit Version)")
     print("=" * 65)
-    
-    # اگر یہ لوکل پر مسلسل چل رہا ہے تو اسٹارٹ نوٹیفکیشن بھیجیں
+
     if not args.once:
-        send_ntfy_notification("Scanner Started", "Live Scanner is running continuously.", tags="white_check_mark")
-    
-    # ٹاپ 500 کوئنز حاصل کریں
+        send_ntfy_notification("Scanner Started", "Bybit Scanner is running continuously.", tags="white_check_mark")
+
     SYMBOLS = get_top_500_symbols()
     print(f"Scanning {len(SYMBOLS)} symbols...\n")
 
     start_time = time.time()
-    MAX_RUNTIME = 5.5 * 3600  # GitHub Actions کے 6 گھنٹے کے ٹائم آؤٹ سے بچنے کے لیے
+    MAX_RUNTIME = 5.5 * 3600
 
     while True:
-        # ٹائم آؤٹ چیک کریں (صرف مسلسل چلنے کی صورت میں)
         if not args.once and (time.time() - start_time > MAX_RUNTIME):
             print("\nApproaching GitHub Actions time limit. Exiting gracefully...")
             sys.exit(0)
@@ -255,16 +266,13 @@ def main():
                 check_live_signal(m30, active_sweeps, symbol, "30M")
 
             print(f"   Status: Scanned {len(SYMBOLS)} coins. Active Sweeps: {total_active_sweeps}")
-            
-            # --- GitHub Actions کے لیے اہم تبدیلی ---
-            # اگر --once کا آپشن دیا گیا ہے، تو ایک اسکین مکمل ہونے کے بعد پروگرام بند کر دیں
+
             if args.once:
                 print("Single scan complete (--once flag detected). Exiting...")
                 sys.exit(0)
-            
-            # ورنہ 5 منٹ رک کر دوبارہ اسکین کریں (لوکل رن کے لیے)
+
             print("   Waiting 5 minutes for next scan...")
-            time.sleep(300) 
+            time.sleep(300)
 
         except Exception as e:
             print(f"\n⚠️ Error in main loop: {e}")
