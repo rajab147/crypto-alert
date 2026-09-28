@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 import sys
+import argparse
 
 # --- Configuration ---
 BUFFER = 0.001
@@ -23,24 +24,22 @@ URL = "https://fapi.binance.com/fapi/v1/klines"
 NTFY_TOPIC = "ChartMaster786x7k2p9"
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 
+# To keep track of already triggered signals (to avoid spamming)
 SIGNALED_SWEEPS = set()
 
 def get_top_500_symbols():
     """بائننس سے ٹاپ 500 فیوچرز کوئنز حاصل کرنا (بلحاظ 24 گھنٹے والیوم)"""
     print("Fetching Top 500 USDT Perpetual Symbols from Binance...")
     try:
-        # تمام فیوچرز سیمبولز حاصل کریں
         exchange_info = requests.get("https://fapi.binance.com/fapi/v1/exchangeInfo", timeout=20).json()
         valid_symbols = [
             s['symbol'] for s in exchange_info['symbols'] 
             if s['contractType'] == 'PERPETUAL' and s['quoteAsset'] == 'USDT' and s['status'] == 'TRADING'
         ]
         
-        # 24 گھنٹے کا والیوم حاصل کریں
         ticker_data = requests.get("https://fapi.binance.com/fapi/v1/ticker/24hr", timeout=20).json()
         filtered_tickers = [t for t in ticker_data if t['symbol'] in valid_symbols]
         
-        # والیوم کے لحاظ سے سارٹ کریں
         filtered_tickers.sort(key=lambda x: float(x['quoteVolume']), reverse=True)
         
         top_500 = [t['symbol'] for t in filtered_tickers[:500]]
@@ -190,25 +189,36 @@ def check_live_signal(df, active_sweeps, symbol, tf):
             send_ntfy_notification(title, msg, tags="arrow_down,chart_with_downwards_trend")
 
 def main():
+    # --- یہاں argparse کا اضافہ کیا گیا ہے ---
+    parser = argparse.ArgumentParser(description="Liquidity Sweep Live Scanner")
+    parser.add_argument("--once", action="store_true", help="Run one full scan and exit (for GitHub Actions)")
+    parser.add_argument("--test-notify", action="store_true", help="Send a test NTFY notification and exit")
+    args = parser.parse_args()
+
+    # اگر ٹیسٹ نوٹیفکیشن کا کمانڈ دیا گیا ہو
+    if args.test_notify:
+        send_ntfy_notification("Test Notification", "This is a test message from the scanner.")
+        sys.exit(0)
+
     print("=" * 65)
     print("LIQUIDITY SWEEP LIVE SCANNER (GitHub Actions Version)")
     print("=" * 65)
     
-    send_ntfy_notification("Scanner Started", "GitHub Actions Scanner is now running.", tags="white_check_mark")
+    # اگر یہ لوکل پر مسلسل چل رہا ہے تو اسٹارٹ نوٹیفکیشن بھیجیں
+    if not args.once:
+        send_ntfy_notification("Scanner Started", "Live Scanner is running continuously.", tags="white_check_mark")
     
-    # GitHub Actions کے 6 گھنٹے کے ٹائم آؤٹ سے بچنے کے لیے ٹائمر
-    start_time = time.time()
-    MAX_RUNTIME = 5.5 * 3600  # 5 گھنٹے 30 منٹ
-
     # ٹاپ 500 کوئنز حاصل کریں
     SYMBOLS = get_top_500_symbols()
     print(f"Scanning {len(SYMBOLS)} symbols...\n")
 
+    start_time = time.time()
+    MAX_RUNTIME = 5.5 * 3600  # GitHub Actions کے 6 گھنٹے کے ٹائم آؤٹ سے بچنے کے لیے
+
     while True:
-        # چیک کریں کہ کیا ٹائم آؤٹ ہونے والا ہے
-        if time.time() - start_time > MAX_RUNTIME:
+        # ٹائم آؤٹ چیک کریں (صرف مسلسل چلنے کی صورت میں)
+        if not args.once and (time.time() - start_time > MAX_RUNTIME):
             print("\nApproaching GitHub Actions time limit. Exiting gracefully...")
-            send_ntfy_notification("Scanner Restarting", "Time limit reached. GitHub will restart the scanner shortly.", tags="arrows_counterclockwise")
             sys.exit(0)
 
         try:
@@ -216,7 +226,6 @@ def main():
             print(f"\n[{current_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC] Scanning {len(SYMBOLS)} coins...")
 
             total_active_sweeps = 0
-            signals_found = 0
 
             for symbol in SYMBOLS:
                 daily = get_data(symbol, "1d")
@@ -247,7 +256,13 @@ def main():
 
             print(f"   Status: Scanned {len(SYMBOLS)} coins. Active Sweeps: {total_active_sweeps}")
             
-            # 500 کوئنز کو اسکین کرنے میں وقت لگے گا، اس لیے اگلا اسکین 5 منٹ بعد
+            # --- GitHub Actions کے لیے اہم تبدیلی ---
+            # اگر --once کا آپشن دیا گیا ہے، تو ایک اسکین مکمل ہونے کے بعد پروگرام بند کر دیں
+            if args.once:
+                print("Single scan complete (--once flag detected). Exiting...")
+                sys.exit(0)
+            
+            # ورنہ 5 منٹ رک کر دوبارہ اسکین کریں (لوکل رن کے لیے)
             print("   Waiting 5 minutes for next scan...")
             time.sleep(300) 
 
