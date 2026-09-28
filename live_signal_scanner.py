@@ -18,39 +18,49 @@ H4_LOOKBACK = 20
 DAILY_HOURS = 48
 H4_HOURS = 24
 
-# --- Bybit API Configuration ---
-BYBIT_KLINE_URL = "https://api.bybit.com/v5/market/kline"
-BYBIT_TICKER_URL = "https://api.bybit.com/v5/market/tickers"
+# --- OKX API Configuration ---
+OKX_BASE_URL = "https://www.okx.com"
 
 # --- NTFY Configuration ---
 NTFY_TOPIC = "ChartMaster786x7k2p9"
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 
-# To keep track of already triggered signals (to avoid spamming)
 SIGNALED_SWEEPS = set()
 
 def get_top_500_symbols():
-    """Bybit سے ٹاپ 500 لینیئر فیوچرز کوئنز حاصل کرنا (بلحاظ 24 گھنٹے والیوم)"""
-    print("Fetching Top 500 USDT Linear Perpetual Symbols from Bybit...")
+    """OKX سے ٹاپ 500 USDT فیوچرز حاصل کرنا (بلحاظ 24 گھنٹے والیوم)"""
+    print("Fetching Top 500 USDT Perpetual Symbols from OKX...")
     try:
-        params = {"category": "linear"}
-        response = requests.get(BYBIT_TICKER_URL, params=params, timeout=20)
-        data = response.json()
+        url = f"{OKX_BASE_URL}/api/v5/market/tickers?instType=SWAP"
+        r = requests.get(url, timeout=20)
+        
+        # JSON پارسنگ سے پہلے چیک کریں کہ جواب ٹھیک ہے یا نہیں
+        if r.status_code != 200:
+            print(f"OKX HTTP Error: {r.status_code}")
+            return get_default_symbols()
+            
+        data = r.json()
+        
+        if data.get('code') != '0':
+            print(f"OKX API Error: {data.get('msg')}")
+            return get_default_symbols()
 
-        if data.get('retCode') != 0:
-            raise Exception(f"Bybit API Error: {data.get('retMsg')}")
+        tickers = data['data']
+        
+        # صرف USDT والے SWAP فلٹر کریں اور والیوم کے لحاظ سے سارٹ کریں
+        usdt_tickers = [t for t in tickers if t['instId'].endswith('-USDT-SWAP')]
+        usdt_tickers.sort(key=lambda x: float(x.get('volCcy24h', 0)), reverse=True)
 
-        # صرف USDT والے پیئرز فلٹر کریں اور والیوم کے لحاظ سے سارٹ کریں
-        tickers = data['result']['list']
-        usdt_tickers = [t for t in tickers if t['symbol'].endswith('USDT')]
-        usdt_tickers.sort(key=lambda x: float(x['turnover24h']), reverse=True)
-
-        top_500 = [t['symbol'] for t in usdt_tickers[:500]]
+        # OKX فارمیٹ (BTC-USDT-SWAP) کو Binance/Bybit فارمیٹ (BTCUSDT) میں تبدیل کریں
+        top_500 = [t['instId'].replace('-USDT-SWAP', 'USDT') for t in usdt_tickers[:500]]
         print(f"Successfully fetched {len(top_500)} symbols.")
         return top_500
     except Exception as e:
         print(f"Error fetching symbols: {e}. Using default 10 symbols.")
-        return ["SOLUSDT", "NEARUSDT", "SUIUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "ADAUSDT"]
+        return get_default_symbols()
+
+def get_default_symbols():
+    return ["SOLUSDT", "NEARUSDT", "SUIUSDT", "APTUSDT", "ARBUSDT", "OPUSDT", "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "ADAUSDT"]
 
 def send_ntfy_notification(title, message, tags="chart"):
     """NTFY کے ذریعے موبائل پر نوٹیفکیشن بھیجنا"""
@@ -63,53 +73,57 @@ def send_ntfy_notification(title, message, tags="chart"):
         print(f"   -> NTFY Error: {e}")
 
 def get_data(symbol, interval, limit=200):
-    """Bybit سے OHLCV ڈیٹا حاصل کرنا"""
-    # Bybit کے انٹرویل فارمیٹ میں تبدیلی
-    interval_map = {"1d": "D", "4h": "240", "1h": "60", "30m": "30"}
-    bybit_interval = interval_map.get(interval, "30")
+    """OKX سے OHLCV ڈیٹا حاصل کرنا"""
+    # OKX کے انٹرویل فارمیٹ میں تبدیلی
+    interval_map = {"1d": "1D", "4h": "4H", "1h": "1H", "30m": "30m"}
+    okx_interval = interval_map.get(interval, "30m")
+    
+    # OKX فارمیٹ میں سیمبول بنانا
+    okx_symbol = symbol.replace('USDT', '-USDT-SWAP')
 
     params = {
-        "category": "linear",
-        "symbol": symbol,
-        "interval": bybit_interval,
+        "instId": okx_symbol,
+        "bar": okx_interval,
         "limit": limit
     }
 
     try:
-        r = requests.get(BYBIT_KLINE_URL, params=params, timeout=15)
-        if r.status_code == 429:
-            print("Rate limit hit! Sleeping for 10 seconds...")
-            time.sleep(10)
+        url = f"{OKX_BASE_URL}/api/v5/market/candles"
+        r = requests.get(url, params=params, timeout=15)
+        
+        if r.status_code != 200:
             return pd.DataFrame()
+            
         data = r.json()
+        
+        if data.get('code') != '0':
+            return pd.DataFrame()
+
+        klines = data['data']
+        if not klines:
+            return pd.DataFrame()
+
+        # OKX ڈیٹا کو نئے سے پرانے کی ترتیب میں دیتا ہے، اسے ریورس کریں
+        klines = klines[::-1]
+
+        # OKX کالمز: [ts, o, h, l, c, vol, volCcy, volCcyQuote, confirm]
+        df = pd.DataFrame(klines, columns=["time", "open", "high", "low", "close", "volume", "volCcy", "volCcyQuote", "confirm"])
+        
+        df["time"] = pd.to_datetime(df["time"].astype(float), unit="ms", utc=True)
+        
+        for c in ["open", "high", "low", "close", "volume"]:
+            df[c] = pd.to_numeric(df[c])
+
+        # صرف مکمل شدہ کینڈلز رکھیں (confirm == '1')
+        df = df[df["confirm"] == '1']
+
+        df = df[["time", "open", "high", "low", "close", "volume"]]
+        df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
+
+        return df
+
     except Exception as e:
         return pd.DataFrame()
-
-    time.sleep(0.15) # API Rate limit سے بچنے کے لیے لازمی وقفہ
-
-    if data.get('retCode') != 0:
-        return pd.DataFrame()
-
-    klines = data['result']['list']
-    if not klines:
-        return pd.DataFrame()
-
-    # Bybit ڈیٹا کو نئے سے پرانے کی ترتیب میں دیتا ہے، اس لیے اسے ریورس کریں
-    klines = klines[::-1]
-
-    df = pd.DataFrame(klines, columns=["time", "open", "high", "low", "close", "volume", "turnover"])
-    df["time"] = pd.to_datetime(df["time"].astype(float), unit="ms", utc=True)
-
-    for c in ["open", "high", "low", "close", "volume"]:
-        df[c] = pd.to_numeric(df[c])
-
-    df = df[["time", "open", "high", "low", "close", "volume"]]
-    df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
-
-    if len(df) > 1:
-        df = df.iloc[:-1].copy() # آخری نامکمل کینڈل کو خارج کریں
-
-    return df
 
 def add_indicators(df):
     df = df.copy()
@@ -205,21 +219,21 @@ def check_live_signal(df, active_sweeps, symbol, tf):
             send_ntfy_notification(title, msg, tags="arrow_down,chart_with_downwards_trend")
 
 def main():
-    parser = argparse.ArgumentParser(description="Liquidity Sweep Live Scanner (Bybit Version)")
+    parser = argparse.ArgumentParser(description="Liquidity Sweep Live Scanner (OKX Version)")
     parser.add_argument("--once", action="store_true", help="Run one full scan and exit (for GitHub Actions)")
     parser.add_argument("--test-notify", action="store_true", help="Send a test NTFY notification and exit")
     args = parser.parse_args()
 
     if args.test_notify:
-        send_ntfy_notification("Test Notification", "This is a test message from the Bybit scanner.")
+        send_ntfy_notification("Test Notification", "This is a test message from the OKX scanner.")
         sys.exit(0)
 
     print("=" * 65)
-    print("LIQUIDITY SWEEP LIVE SCANNER (Bybit Version)")
+    print("LIQUIDITY SWEEP LIVE SCANNER (OKX Version)")
     print("=" * 65)
 
     if not args.once:
-        send_ntfy_notification("Scanner Started", "Bybit Scanner is running continuously.", tags="white_check_mark")
+        send_ntfy_notification("Scanner Started", "OKX Scanner is running continuously.", tags="white_check_mark")
 
     SYMBOLS = get_top_500_symbols()
     print(f"Scanning {len(SYMBOLS)} symbols...\n")
