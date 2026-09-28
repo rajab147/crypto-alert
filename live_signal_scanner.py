@@ -1023,5 +1023,5 @@ def run_scan_cycle(
 
             continue
 
-        STATS[
+        STATS
         
