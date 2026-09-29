@@ -17,9 +17,8 @@ RSI_OS = 25
 VOL_PERIOD = 20
 VOL_MULT = 1.5
 
-# --- اہم تبدیلیاں ---
-DAILY_LOOKBACK = 1          # صرف پچھلے دن کی کینڈل (Previous day only)
-H4_LOOKBACK = 5             # کم از کم 4-5 کینڈلز کا سویپ (4H)
+DAILY_LOOKBACK = 1          # صرف پچھلے دن کی کینڈل
+H4_LOOKBACK = 5             # 4H کی 5 کینڈلز کا سویپ
 
 DAILY_WINDOW_HOURS = 12
 H4_WINDOW_HOURS = 6
@@ -30,9 +29,14 @@ SCAN_INTERVAL_MINUTES = 30
 REQUEST_DELAY = 0.20
 MAX_SYMBOLS = 500
 
+# GitHub Actions کی 6 گھنٹے کی حد سے پہلے خود بند ہو جاؤ
+MAX_RUN_HOURS = 5.5
+START_TIME = time.time()
+
 OKX_BASE_URL = "https://www.okx.com"
 
-NTFY_TOPIC = "ChartMaster786x7k2p9"
+# Topic اب GitHub Secret سے آئے گا (کوڈ میں نہیں)
+NTFY_TOPIC = os.getenv("NTFY_TOPIC", "").strip()
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_state.json")
@@ -42,8 +46,8 @@ STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_s
 # Symbol Loading
 # ============================================================
 
-def get_top_500_symbols():
-    print("Fetching Top 500 USDT Perpetual Symbols from OKX...")
+def get_top_symbols():
+    print(f"Fetching Top {MAX_SYMBOLS} USDT Perpetual Symbols from OKX...")
     try:
         url = f"{OKX_BASE_URL}/api/v5/market/tickers?instType=SWAP"
         r = requests.get(url, timeout=20)
@@ -53,10 +57,17 @@ def get_top_500_symbols():
         if data.get('code') != '0':
             return get_default_symbols()
 
-        tickers = data['data']
-        usdt_tickers = [t for t in tickers if t['instId'].endswith('-USDT-SWAP')]
-        usdt_tickers.sort(key=lambda x: float(x.get('volCcy24h', 0)), reverse=True)
-        top = [t['instId'].replace('-USDT-SWAP', 'USDT') for t in usdt_tickers[:MAX_SYMBOLS]]
+        tickers = [t for t in data['data'] if t['instId'].endswith('-USDT-SWAP')]
+
+        # volCcy24h کوائن کی تعداد میں ہوتا ہے، اس لیے قیمت سے ضرب دے کر USDT ویلیو نکالی
+        def usdt_volume(t):
+            try:
+                return float(t.get('volCcy24h') or 0) * float(t.get('last') or 0)
+            except ValueError:
+                return 0.0
+
+        tickers.sort(key=usdt_volume, reverse=True)
+        top = [t['instId'].replace('-USDT-SWAP', 'USDT') for t in tickers[:MAX_SYMBOLS]]
         print(f"Successfully fetched {len(top)} symbols.")
         return top
     except Exception as e:
@@ -74,7 +85,8 @@ def get_default_symbols():
 # ============================================================
 
 def get_data(symbol, interval, limit=200):
-    interval_map = {"1d": "1D", "4h": "4H", "1h": "1H", "30m": "30m"}
+    # "1Dutc" = UTC پر کھلنے والی daily کینڈل
+    interval_map = {"1d": "1Dutc", "4h": "4H", "1h": "1H", "30m": "30m"}
     okx_interval = interval_map.get(interval, "30m")
     okx_symbol = symbol.replace('USDT', '-USDT-SWAP')
 
@@ -104,12 +116,10 @@ def get_data(symbol, interval, limit=200):
     for c in ["open", "high", "low", "close", "volume"]:
         df[c] = pd.to_numeric(df[c])
 
+    # صرف بند (confirmed) کینڈلز رکھو، کھلی کینڈل خود ہٹ جاتی ہے
     df = df[df["confirm"] == '1']
     df = df[["time", "open", "high", "low", "close", "volume"]]
     df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
-
-    if len(df) > 1:
-        df = df.iloc[:-1].copy()
 
     return df
 
@@ -147,8 +157,9 @@ def find_sweeps(df, lookback, hours, tf, bar_hours):
     old_high = df["high"].rolling(lookback, min_periods=lookback).max().shift(1).values
     old_low = df["low"].rolling(lookback, min_periods=lookback).min().shift(1).values
 
-    high_mask = (high > old_high) & (close < old_high * (1 - BUFFER))
-    low_mask = (low < old_low) & (close > old_low * (1 + BUFFER))
+    with np.errstate(invalid="ignore"):
+        high_mask = (high > old_high) & (close < old_high * (1 - BUFFER))
+        low_mask = (low < old_low) & (close > old_low * (1 + BUFFER))
     high_mask = np.nan_to_num(high_mask, nan=False).astype(bool)
     low_mask = np.nan_to_num(low_mask, nan=False).astype(bool)
 
@@ -257,9 +268,8 @@ def send_ntfy(symbol, signal):
     tps = signal["tps"]
 
     tp_lines = "\n".join(f"TP (1:{rr}): {tp:.6f}" for rr, tp in sorted(tps.items()))
-    title = f"{'🚀 LONG' if side == 'LONG' else '🔻 SHORT'}: {symbol} (30M)"
+    title = f"{'LONG' if side == 'LONG' else 'SHORT'}: {symbol} (30M)"
 
-    # کوئن کا نام میسج کے شروع میں (کاپی ہو جائے گا)
     message = (
         f"Coin: {symbol}\n"
         f"Side: {side}\n"
@@ -304,9 +314,7 @@ def run_scan_cycle(symbols, state):
         if daily.empty or h4.empty or entry_df.empty:
             continue
 
-        # Daily: صرف پچھلے دن کی کینڈل (lookback=1)
         daily_sweeps = find_sweeps(daily, DAILY_LOOKBACK, DAILY_WINDOW_HOURS, "1D", bar_hours=24)
-        # 4H: کم از کم 5 کینڈلز کا سویپ (lookback=5)
         h4_sweeps = find_sweeps(h4, H4_LOOKBACK, H4_WINDOW_HOURS, "4H", bar_hours=4)
         sweeps = daily_sweeps + h4_sweeps
 
@@ -331,20 +339,24 @@ def run_scan_cycle(symbols, state):
 # ============================================================
 
 def main():
+    if not NTFY_TOPIC:
+        print("ERROR: NTFY_TOPIC environment variable is not set.")
+        sys.exit(1)
+
     print("=" * 65)
     print("LIQUIDITY SWEEP LIVE SCANNER")
     print(f"Daily Lookback: {DAILY_LOOKBACK} candle (previous day)")
     print(f"4H Lookback: {H4_LOOKBACK} candles")
-    print(f"NTFY Topic: {NTFY_TOPIC}")
     print("=" * 65)
 
-    symbols = get_top_500_symbols()
+    symbols = get_top_symbols()
     if not symbols:
         print("No symbols. Exiting.")
         sys.exit(1)
 
     print(f"Scanning {len(symbols)} symbols...\n")
     state = load_state()
+    max_run_seconds = MAX_RUN_HOURS * 3600
 
     while True:
         current_utc = pd.Timestamp.now(tz='UTC').tz_localize(None)
@@ -353,11 +365,10 @@ def main():
         start = time.time()
         count = run_scan_cycle(symbols, state)
         save_state(state)
-        elapsed = time.time() - start
+        scan_seconds = time.time() - start
 
-        print(f"Scan complete in {elapsed/60:.1f} min. New signals: {count}")
+        print(f"Scan complete in {scan_seconds/60:.1f} min. New signals: {count}")
 
-        # اگلے 30 منٹ والے نمبر کا انتظار کریں
         now = pd.Timestamp.now(tz='UTC').tz_localize(None)
         next_scan = now.ceil(f'{SCAN_INTERVAL_MINUTES}min')
         sleep_seconds = (next_scan - now).total_seconds()
@@ -366,9 +377,17 @@ def main():
             next_scan = next_scan + pd.Timedelta(minutes=SCAN_INTERVAL_MINUTES)
             sleep_seconds = (next_scan - now).total_seconds()
 
+        # اگلا سکین پورا ہونے سے پہلے وقت ختم ہو جائے گا تو صاف طریقے سے بند ہو جاؤ
+        elapsed_total = time.time() - START_TIME
+        if elapsed_total + sleep_seconds + scan_seconds > max_run_seconds:
+            print("Time limit reached. State saved. Exiting cleanly.")
+            save_state(state)
+            break
+
         print(f"Next scan at {next_scan.strftime('%H:%M')} UTC (sleeping {sleep_seconds/60:.1f} min)")
         time.sleep(sleep_seconds)
 
 
 if __name__ == "__main__":
     main()
+        
