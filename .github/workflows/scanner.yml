@@ -2,26 +2,24 @@ name: Binance Liquidity Sweep Scanner
 
 on:
   schedule:
-    # ہر 30 منٹ بعد اسکرپٹ چلے گا (500 کوئنز کے لیے یہ بہتر ہے)
-    - cron: '*/30 * * * *'
-  workflow_dispatch: 
+    - cron: '0 */9 * * *'
+  workflow_dispatch:
 
-# یہ یقینی بنائے گا کہ ایک وقت میں صرف ایک ہی اسکین چلے
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   scan_market:
     runs-on: ubuntu-latest
-    timeout-minutes: 25 # 25 منٹ کا ٹائم آؤٹ
+    timeout-minutes: 360
 
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
@@ -31,4 +29,4 @@ jobs:
         pip install requests pandas numpy
 
     - name: Run Live Scanner
-      run: python live_signal_scanner.py --once
+      run: python live_signal_scanner.py
