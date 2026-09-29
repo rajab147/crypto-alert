@@ -36,9 +36,9 @@ TF_DELTA = {
 }
 
 # --- NTFY (ٹاپک ماحولیاتی متغیر سے) ---
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
-NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}" if NTFY_TOPIC else ""
-
+# --- NTFY ---
+NTFY_TOPIC = "ChartMaster786x7k2p9"
+NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 # --- ڈپلیکیٹ الرٹ سے بچاؤ (فائل میں محفوظ) ---
 STATE_FILE = os.environ.get("STATE_FILE", "signaled.json")
 SIGNALED = {}  # key -> expiry (ISO string)
