@@ -17,7 +17,7 @@ AROON_PERIOD = 14
 PIVOT_LEFT = 2
 PIVOT_RIGHT = 2
 
-# --- 4H Sweep (5-6 candles) ---
+# --- 4H Sweep ---
 H4_LOOKBACK = 6
 H4_WINDOW_HOURS = 8
 
@@ -29,31 +29,36 @@ SCAN_INTERVAL_MINUTES = 30
 REQUEST_DELAY = 0.20
 MAX_SYMBOLS = 500
 
-OKX_BASE_URL = "https://www.okx.com"
+# --- MEXC API ---
+MEXC_BASE_URL = "https://contract.mexc.com"
+
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "ChartMaster786x7k2p9")
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_state.json")
 
 
 # ============================================================
-# Symbols
+# Symbols (MEXC)
 # ============================================================
 
 def get_top_500_symbols():
-    print("Fetching Top 500 USDT Perpetual Symbols from OKX...")
+    print("Fetching Top 500 USDT Perpetual Symbols from MEXC...")
     try:
-        url = f"{OKX_BASE_URL}/api/v5/market/tickers?instType=SWAP"
+        url = f"{MEXC_BASE_URL}/api/v1/contract/ticker"
         r = requests.get(url, timeout=20)
         if r.status_code != 200:
             return get_default_symbols()
         data = r.json()
-        if data.get('code') != '0':
+        if not data.get('success'):
             return get_default_symbols()
 
         tickers = data['data']
-        usdt_tickers = [t for t in tickers if t['instId'].endswith('-USDT-SWAP')]
-        usdt_tickers.sort(key=lambda x: float(x.get('volCcy24h', 0)), reverse=True)
-        top = [t['instId'].replace('-USDT-SWAP', 'USDT') for t in usdt_tickers[:MAX_SYMBOLS]]
+        # صرف USDT والے فیوچرز
+        usdt_tickers = [t for t in tickers if t['symbol'].endswith('_USDT')]
+        # 24h والیوم کے حساب سے سارٹ
+        usdt_tickers.sort(key=lambda x: float(x.get('amount24', 0)), reverse=True)
+
+        top = [t['symbol'].replace('_USDT', 'USDT') for t in usdt_tickers[:MAX_SYMBOLS]]
         print(f"Successfully fetched {len(top)} symbols.")
         return top
     except Exception as e:
@@ -67,18 +72,23 @@ def get_default_symbols():
 
 
 # ============================================================
-# Data
+# Data (MEXC)
 # ============================================================
 
 def get_data(symbol, interval, limit=200):
-    interval_map = {"1d": "1D", "4h": "4H", "1h": "1H", "30m": "30m", "15m": "15m"}
-    okx_interval = interval_map.get(interval, "30m")
-    okx_symbol = symbol.replace('USDT', '-USDT-SWAP')
+    """
+    MEXC سے OHLCV ڈیٹا حاصل کرنا
+    """
+    interval_map = {"1d": "Day1", "4h": "Hour4", "1h": "Hour1",
+                    "30m": "Min30", "15m": "Min15"}
+    mexc_interval = interval_map.get(interval, "Min30")
+    mexc_symbol = symbol.replace('USDT', '_USDT')
 
-    params = {"instId": okx_symbol, "bar": okx_interval, "limit": limit}
+    url = f"{MEXC_BASE_URL}/api/v1/contract/kline/{mexc_symbol}"
+    params = {"interval": mexc_interval}
 
     try:
-        r = requests.get(f"{OKX_BASE_URL}/api/v5/market/candles", params=params, timeout=15)
+        r = requests.get(url, params=params, timeout=15)
         if r.status_code != 200:
             return pd.DataFrame()
         data = r.json()
@@ -87,24 +97,38 @@ def get_data(symbol, interval, limit=200):
 
     time.sleep(REQUEST_DELAY)
 
-    if data.get('code') != '0':
+    if not data.get('success'):
         return pd.DataFrame()
 
-    klines = data['data']
-    if not klines:
+    kd = data.get('data', {})
+    times = kd.get('time', [])
+    if not times:
         return pd.DataFrame()
 
-    klines = klines[::-1]
-    df = pd.DataFrame(klines, columns=["time", "open", "high", "low", "close", "volume",
-                                        "volCcy", "volCcyQuote", "confirm"])
-    df["time"] = pd.to_datetime(df["time"].astype(float), unit="ms", utc=True).dt.tz_localize(None)
+    # MEXC arrays بناتا ہے
+    df = pd.DataFrame({
+        "time": times,
+        "open": kd.get('open', []),
+        "high": kd.get('high', []),
+        "low": kd.get('low', []),
+        "close": kd.get('close', []),
+        "volume": kd.get('vol', [])
+    })
+
+    # ٹائم ٹو ڈیٹ ٹائم
+    df["time"] = pd.to_datetime(df["time"].astype(float), unit="s", utc=True).dt.tz_localize(None)
+
     for c in ["open", "high", "low", "close", "volume"]:
-        df[c] = pd.to_numeric(df[c])
+        df[c] = pd.to_numeric(df[c], errors='coerce')
 
-    df = df[df["confirm"] == '1']
-    df = df[["time", "open", "high", "low", "close", "volume"]]
+    df = df.dropna()
     df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
 
+    # limit نافذ کریں (آخری کینڈلز رکھیں)
+    if len(df) > limit:
+        df = df.iloc[-limit:].copy()
+
+    # آخری نامکمل کینڈل نکال دیں
     if len(df) > 1:
         df = df.iloc[:-1].copy()
 
@@ -156,50 +180,32 @@ def find_pivot_highs(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
 # ============================================================
 
 def check_bullish_divergence(df):
-    """
-    Bullish Divergence:
-    - Price makes a LOWER LOW
-    - Aroon Down makes a LOWER LOW (downtrend weakening)
-    OR
-    - Aroon Up makes a HIGHER LOW (buying pressure increasing)
-    """
     pivot_lows = find_pivot_lows(df)
     if len(pivot_lows) < 2:
         return False
 
     last, prev = pivot_lows[-1], pivot_lows[-2]
-
     price_lower_low = df["low"].iloc[last] < df["low"].iloc[prev]
     if not price_lower_low:
         return False
 
     aroon_down_lower = df["aroon_down"].iloc[last] < df["aroon_down"].iloc[prev]
     aroon_up_higher = df["aroon_up"].iloc[last] > df["aroon_up"].iloc[prev]
-
     return aroon_down_lower or aroon_up_higher
 
 
 def check_bearish_divergence(df):
-    """
-    Bearish Divergence:
-    - Price makes a HIGHER HIGH
-    - Aroon Up makes a LOWER HIGH (uptrend weakening)
-    OR
-    - Aroon Down makes a HIGHER LOW (selling pressure increasing)
-    """
     pivot_highs = find_pivot_highs(df)
     if len(pivot_highs) < 2:
         return False
 
     last, prev = pivot_highs[-1], pivot_highs[-2]
-
     price_higher_high = df["high"].iloc[last] > df["high"].iloc[prev]
     if not price_higher_high:
         return False
 
     aroon_up_lower = df["aroon_up"].iloc[last] < df["aroon_up"].iloc[prev]
     aroon_down_higher = df["aroon_down"].iloc[last] > df["aroon_down"].iloc[prev]
-
     return aroon_up_lower or aroon_down_higher
 
 
@@ -254,7 +260,6 @@ def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDL
 
     for _, row in recent.iterrows():
         t = row["time"]
-
         active = [s for s in sweeps if s["time"] <= t <= s["until"]]
         active.sort(key=lambda s: s["time"], reverse=True)
 
@@ -316,7 +321,7 @@ def save_state(state):
 
 
 # ============================================================
-# NTFY (Fixed: No emojis in Title to avoid latin-1 encoding error)
+# NTFY (Rate Limiter کے ساتھ)
 # ============================================================
 
 def send_ntfy(symbol, signal):
@@ -326,8 +331,6 @@ def send_ntfy(symbol, signal):
     tps = signal["tps"]
 
     tp_lines = "\n".join(f"TP (1:{rr}): {tp:.6f}" for rr, tp in sorted(tps.items()))
-
-    # IMPORTANT: Title میں صرف سادہ ASCII ٹیکسٹ (کوئی ایموجی نہیں)
     title = f"{side}: {symbol} ({signal['entry_tf']})"
 
     message = (
@@ -346,7 +349,7 @@ def send_ntfy(symbol, signal):
             NTFY_URL,
             data=message.encode("utf-8"),
             headers={
-                "Title": title,  # No emojis here
+                "Title": title,
                 "Priority": "high",
                 "Tags": "rocket" if side == "LONG" else "arrow_down",
             },
@@ -354,6 +357,7 @@ def send_ntfy(symbol, signal):
         )
         resp.raise_for_status()
         print(f"  -> NTFY Sent: {symbol} {side} ({signal['entry_tf']})")
+        time.sleep(2)  # NTFY Rate Limit سے بچنے کے لیے
         return True
     except Exception as e:
         print(f"  -> NTFY Error: {e}")
@@ -401,7 +405,7 @@ def run_scan_cycle(symbols, state):
 
 def main():
     print("=" * 65)
-    print("LIQUIDITY SWEEP + AROON DIVERGENCE SCANNER")
+    print("LIQUIDITY SWEEP + AROON DIVERGENCE SCANNER (MEXC)")
     print(f"4H Sweep Lookback: {H4_LOOKBACK} candles")
     print(f"Entry TFs: {ENTRY_TIMEFRAMES}")
     print(f"Aroon Period: {AROON_PERIOD}")
