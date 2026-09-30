@@ -263,9 +263,7 @@ def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDL
             if skey in used:
                 continue
 
-            # ہر قسم کے سوئپ کے لیے صرف اس کے مطابق Divergence چیک کریں
             if sweep["type"] == "LOW":
-                # Bullish Divergence چاہیے (Aroon Down کم ہو رہا ہو)
                 if not check_bullish_divergence(entry_df):
                     continue
                 entry = row["close"]
@@ -276,7 +274,6 @@ def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDL
                 tps = {rr: entry + risk * rr for rr in [1, 2, 3]}
                 side = "LONG"
             else:
-                # Bearish Divergence چاہیے (Aroon Up کم ہو رہا ہو)
                 if not check_bearish_divergence(entry_df):
                     continue
                 entry = row["close"]
@@ -319,7 +316,7 @@ def save_state(state):
 
 
 # ============================================================
-# NTFY
+# NTFY (Fixed: No emojis in Title to avoid latin-1 encoding error)
 # ============================================================
 
 def send_ntfy(symbol, signal):
@@ -329,8 +326,9 @@ def send_ntfy(symbol, signal):
     tps = signal["tps"]
 
     tp_lines = "\n".join(f"TP (1:{rr}): {tp:.6f}" for rr, tp in sorted(tps.items()))
-    emoji = "🚀" if side == "LONG" else "🔻"
-    title = f"{emoji} {side}: {symbol} ({signal['entry_tf']})"
+
+    # IMPORTANT: Title میں صرف سادہ ASCII ٹیکسٹ (کوئی ایموجی نہیں)
+    title = f"{side}: {symbol} ({signal['entry_tf']})"
 
     message = (
         f"Coin: {symbol}\n"
@@ -348,7 +346,7 @@ def send_ntfy(symbol, signal):
             NTFY_URL,
             data=message.encode("utf-8"),
             headers={
-                "Title": title,
+                "Title": title,  # No emojis here
                 "Priority": "high",
                 "Tags": "rocket" if side == "LONG" else "arrow_down",
             },
@@ -375,7 +373,6 @@ def run_scan_cycle(symbols, state):
         if h4.empty:
             continue
 
-        # 4H Sweep: 6 کینڈلز کا lookback
         h4_sweeps = find_sweeps(h4, H4_LOOKBACK, H4_WINDOW_HOURS, "4H", bar_hours=4)
         if not h4_sweeps:
             continue
