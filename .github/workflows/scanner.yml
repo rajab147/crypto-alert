@@ -13,10 +13,14 @@ jobs:
   scan_market:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    permissions:
+      contents: write
 
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -32,3 +36,12 @@ jobs:
       run: python live_signal_scanner.py
       env:
         NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+
+    - name: Commit State File
+      if: always()
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "actions@github.com"
+        git add scanner_state.json || true
+        git diff --staged --quiet || git commit -m "Update scanner state [skip ci]"
+        git push || true
