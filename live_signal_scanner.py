@@ -19,11 +19,11 @@ PIVOT_RIGHT = 2
 
 # --- 4H Sweep ---
 H4_LOOKBACK = 6
-H4_WINDOW_HOURS = 8
+H4_WINDOW_HOURS = 4
 
 # --- Entry ---
 ENTRY_TIMEFRAMES = ["15m", "30m"]
-RECENT_CANDLES = 30
+RECENT_CANDLES = 2
 
 SCAN_INTERVAL_MINUTES = 30
 REQUEST_DELAY = 0.20
@@ -32,10 +32,20 @@ MAX_SYMBOLS = 500
 # --- MEXC API ---
 MEXC_BASE_URL = "https://contract.mexc.com"
 
-# --- NTFY (نیا ٹاپک) ---
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "ChartMaster-x9Kp2mQ7vL4wZ8")
+# --- NTFY (مکمل محفوظ - ٹاپک صرف GitHub Secret سے) ---
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
+if not NTFY_TOPIC:
+    print("=" * 65)
+    print("ERROR: NTFY_TOPIC environment variable is not set!")
+    print("Please set it in GitHub Secrets: Settings → Secrets → NTFY_TOPIC")
+    print("=" * 65)
+    sys.exit(1)
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
+
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_state.json")
+
+# --- Cooldown ---
+COOLDOWN_HOURS = 4
 
 
 # ============================================================
@@ -168,7 +178,7 @@ def find_pivot_highs(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
 
 
 # ============================================================
-# Divergence Detection
+# Divergence Detection (سخت - دونوں شرائط لازمی)
 # ============================================================
 
 def check_bullish_divergence(df):
@@ -177,13 +187,15 @@ def check_bullish_divergence(df):
         return False
 
     last, prev = pivot_lows[-1], pivot_lows[-2]
+
     price_lower_low = df["low"].iloc[last] < df["low"].iloc[prev]
     if not price_lower_low:
         return False
 
     aroon_down_lower = df["aroon_down"].iloc[last] < df["aroon_down"].iloc[prev]
     aroon_up_higher = df["aroon_up"].iloc[last] > df["aroon_up"].iloc[prev]
-    return aroon_down_lower or aroon_up_higher
+
+    return aroon_down_lower and aroon_up_higher
 
 
 def check_bearish_divergence(df):
@@ -192,13 +204,15 @@ def check_bearish_divergence(df):
         return False
 
     last, prev = pivot_highs[-1], pivot_highs[-2]
+
     price_higher_high = df["high"].iloc[last] > df["high"].iloc[prev]
     if not price_higher_high:
         return False
 
     aroon_up_lower = df["aroon_up"].iloc[last] < df["aroon_up"].iloc[prev]
     aroon_down_higher = df["aroon_down"].iloc[last] > df["aroon_down"].iloc[prev]
-    return aroon_up_lower or aroon_down_higher
+
+    return aroon_up_lower and aroon_down_higher
 
 
 # ============================================================
@@ -239,7 +253,7 @@ def find_sweeps(df, lookback, hours, tf, bar_hours):
 
 
 # ============================================================
-# Signal Generation
+# Signal Generation (سخت + Cooldown)
 # ============================================================
 
 def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDLES):
@@ -248,6 +262,14 @@ def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDL
         return signals
 
     used = set(state.get("used", []))
+    cooldown = state.get("cooldown", {})
+
+    now_utc = pd.Timestamp.now(tz='UTC').tz_localize(None)
+    if symbol in cooldown:
+        last_signal_time = pd.Timestamp(cooldown[symbol])
+        if (now_utc - last_signal_time).total_seconds() < COOLDOWN_HOURS * 3600:
+            return signals
+
     recent = entry_df.iloc[-n_recent:]
 
     for _, row in recent.iterrows():
@@ -256,7 +278,7 @@ def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDL
         active.sort(key=lambda s: s["time"], reverse=True)
 
         for sweep in active:
-            skey = f"{symbol}|{entry_tf}|{sweep['tf']}|{sweep['type']}|{sweep['time'].isoformat()}"
+            skey = f"{symbol}|{sweep['tf']}|{sweep['type']}"
             if skey in used:
                 continue
 
@@ -282,6 +304,9 @@ def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDL
                 side = "SHORT"
 
             used.add(skey)
+            cooldown[symbol] = now_utc.isoformat()
+            state["cooldown"] = cooldown
+
             signals.append({"time": t, "side": side, "entry": entry, "sl": sl, "tps": tps,
                             "sweep_tf": sweep["tf"], "sweep_type": sweep["type"],
                             "entry_tf": entry_tf, "sweep_key": skey})
@@ -313,7 +338,7 @@ def save_state(state):
 
 
 # ============================================================
-# NTFY (Rate Limiter کے ساتھ)
+# NTFY (مکمل محفوظ)
 # ============================================================
 
 def send_ntfy(symbol, signal):
@@ -398,10 +423,10 @@ def run_scan_cycle(symbols, state):
 def main():
     print("=" * 65)
     print("LIQUIDITY SWEEP + AROON DIVERGENCE SCANNER (MEXC)")
-    print(f"4H Sweep Lookback: {H4_LOOKBACK} candles")
-    print(f"Entry TFs: {ENTRY_TIMEFRAMES}")
-    print(f"Aroon Period: {AROON_PERIOD}")
-    print(f"NTFY Topic: {NTFY_TOPIC}")
+    print(f"4H Sweep Lookback: {H4_LOOKBACK} candles | Window: {H4_WINDOW_HOURS}h")
+    print(f"Entry TFs: {ENTRY_TIMEFRAMES} | Recent Candles: {RECENT_CANDLES}")
+    print(f"Aroon Period: {AROON_PERIOD} | Cooldown: {COOLDOWN_HOURS}h")
+    print(f"NTFY Topic: [HIDDEN - loaded from GitHub Secret]")
     print("=" * 65)
 
     symbols = get_top_500_symbols()
