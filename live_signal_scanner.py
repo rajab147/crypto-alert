@@ -11,43 +11,36 @@ import sys
 # ============================================================
 
 BUFFER = 0.001
-RSI_PERIOD = 9
-RSI_OB = 75
-RSI_OS = 25
-VOL_PERIOD = 20
-VOL_MULT = 1.5
 
-DAILY_LOOKBACK = 1          # صرف پچھلے دن کی کینڈل
-H4_LOOKBACK = 5             # 4H کی 5 کینڈلز کا سویپ
+# --- Aroon ---
+AROON_PERIOD = 14
+PIVOT_LEFT = 2
+PIVOT_RIGHT = 2
 
-DAILY_WINDOW_HOURS = 12
-H4_WINDOW_HOURS = 6
-RECENT_CANDLES = 8
+# --- 4H Sweep (5-6 candles) ---
+H4_LOOKBACK = 6
+H4_WINDOW_HOURS = 8
 
-ENTRY_TIMEFRAME = "30m"
+# --- Entry ---
+ENTRY_TIMEFRAMES = ["15m", "30m"]
+RECENT_CANDLES = 30
+
 SCAN_INTERVAL_MINUTES = 30
 REQUEST_DELAY = 0.20
 MAX_SYMBOLS = 500
 
-# GitHub Actions کی 6 گھنٹے کی حد سے پہلے خود بند ہو جاؤ
-MAX_RUN_HOURS = 5.5
-START_TIME = time.time()
-
 OKX_BASE_URL = "https://www.okx.com"
-
-# Topic اب GitHub Secret سے آئے گا (کوڈ میں نہیں)
-NTFY_TOPIC = os.getenv("NTFY_TOPIC", "").strip()
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "ChartMaster786x7k2p9")
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
-
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_state.json")
 
 
 # ============================================================
-# Symbol Loading
+# Symbols
 # ============================================================
 
-def get_top_symbols():
-    print(f"Fetching Top {MAX_SYMBOLS} USDT Perpetual Symbols from OKX...")
+def get_top_500_symbols():
+    print("Fetching Top 500 USDT Perpetual Symbols from OKX...")
     try:
         url = f"{OKX_BASE_URL}/api/v5/market/tickers?instType=SWAP"
         r = requests.get(url, timeout=20)
@@ -57,17 +50,10 @@ def get_top_symbols():
         if data.get('code') != '0':
             return get_default_symbols()
 
-        tickers = [t for t in data['data'] if t['instId'].endswith('-USDT-SWAP')]
-
-        # volCcy24h کوائن کی تعداد میں ہوتا ہے، اس لیے قیمت سے ضرب دے کر USDT ویلیو نکالی
-        def usdt_volume(t):
-            try:
-                return float(t.get('volCcy24h') or 0) * float(t.get('last') or 0)
-            except ValueError:
-                return 0.0
-
-        tickers.sort(key=usdt_volume, reverse=True)
-        top = [t['instId'].replace('-USDT-SWAP', 'USDT') for t in tickers[:MAX_SYMBOLS]]
+        tickers = data['data']
+        usdt_tickers = [t for t in tickers if t['instId'].endswith('-USDT-SWAP')]
+        usdt_tickers.sort(key=lambda x: float(x.get('volCcy24h', 0)), reverse=True)
+        top = [t['instId'].replace('-USDT-SWAP', 'USDT') for t in usdt_tickers[:MAX_SYMBOLS]]
         print(f"Successfully fetched {len(top)} symbols.")
         return top
     except Exception as e:
@@ -81,12 +67,11 @@ def get_default_symbols():
 
 
 # ============================================================
-# Data Fetching
+# Data
 # ============================================================
 
 def get_data(symbol, interval, limit=200):
-    # "1Dutc" = UTC پر کھلنے والی daily کینڈل
-    interval_map = {"1d": "1Dutc", "4h": "4H", "1h": "1H", "30m": "30m"}
+    interval_map = {"1d": "1D", "4h": "4H", "1h": "1H", "30m": "30m", "15m": "15m"}
     okx_interval = interval_map.get(interval, "30m")
     okx_symbol = symbol.replace('USDT', '-USDT-SWAP')
 
@@ -116,33 +101,110 @@ def get_data(symbol, interval, limit=200):
     for c in ["open", "high", "low", "close", "volume"]:
         df[c] = pd.to_numeric(df[c])
 
-    # صرف بند (confirmed) کینڈلز رکھو، کھلی کینڈل خود ہٹ جاتی ہے
     df = df[df["confirm"] == '1']
     df = df[["time", "open", "high", "low", "close", "volume"]]
     df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
 
-    return df
-
-
-def add_indicators(df):
-    df = df.copy()
-    delta = df["close"].diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-
-    avg_gain = gain.ewm(alpha=1 / RSI_PERIOD, min_periods=RSI_PERIOD, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1 / RSI_PERIOD, min_periods=RSI_PERIOD, adjust=False).mean()
-    rs = avg_gain / avg_loss
-    df["rsi"] = 100 - (100 / (1 + rs))
-
-    df["vol_avg"] = df["volume"].rolling(VOL_PERIOD).mean()
-    df["vol_ok"] = df["volume"] >= df["vol_avg"] * VOL_MULT
+    if len(df) > 1:
+        df = df.iloc[:-1].copy()
 
     return df
 
 
 # ============================================================
-# Sweep Detection
+# Aroon Indicator
+# ============================================================
+
+def add_aroon(df, period=AROON_PERIOD):
+    df = df.copy()
+    window = period + 1
+
+    df["aroon_up"] = df["high"].rolling(window).apply(
+        lambda x: (x.argmax() / period) * 100, raw=True
+    )
+    df["aroon_down"] = df["low"].rolling(window).apply(
+        lambda x: (x.argmin() / period) * 100, raw=True
+    )
+
+    return df
+
+
+# ============================================================
+# Pivot Detection
+# ============================================================
+
+def find_pivot_lows(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
+    lows = df["low"].values
+    indices = []
+    for i in range(left, len(lows) - right):
+        if lows[i] == lows[i-left:i+right+1].min():
+            indices.append(i)
+    return indices
+
+
+def find_pivot_highs(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
+    highs = df["high"].values
+    indices = []
+    for i in range(left, len(highs) - right):
+        if highs[i] == highs[i-left:i+right+1].max():
+            indices.append(i)
+    return indices
+
+
+# ============================================================
+# Divergence Detection
+# ============================================================
+
+def check_bullish_divergence(df):
+    """
+    Bullish Divergence:
+    - Price makes a LOWER LOW
+    - Aroon Down makes a LOWER LOW (downtrend weakening)
+    OR
+    - Aroon Up makes a HIGHER LOW (buying pressure increasing)
+    """
+    pivot_lows = find_pivot_lows(df)
+    if len(pivot_lows) < 2:
+        return False
+
+    last, prev = pivot_lows[-1], pivot_lows[-2]
+
+    price_lower_low = df["low"].iloc[last] < df["low"].iloc[prev]
+    if not price_lower_low:
+        return False
+
+    aroon_down_lower = df["aroon_down"].iloc[last] < df["aroon_down"].iloc[prev]
+    aroon_up_higher = df["aroon_up"].iloc[last] > df["aroon_up"].iloc[prev]
+
+    return aroon_down_lower or aroon_up_higher
+
+
+def check_bearish_divergence(df):
+    """
+    Bearish Divergence:
+    - Price makes a HIGHER HIGH
+    - Aroon Up makes a LOWER HIGH (uptrend weakening)
+    OR
+    - Aroon Down makes a HIGHER LOW (selling pressure increasing)
+    """
+    pivot_highs = find_pivot_highs(df)
+    if len(pivot_highs) < 2:
+        return False
+
+    last, prev = pivot_highs[-1], pivot_highs[-2]
+
+    price_higher_high = df["high"].iloc[last] > df["high"].iloc[prev]
+    if not price_higher_high:
+        return False
+
+    aroon_up_lower = df["aroon_up"].iloc[last] < df["aroon_up"].iloc[prev]
+    aroon_down_higher = df["aroon_down"].iloc[last] > df["aroon_down"].iloc[prev]
+
+    return aroon_up_lower or aroon_down_higher
+
+
+# ============================================================
+# 4H Sweep Detection
 # ============================================================
 
 def find_sweeps(df, lookback, hours, tf, bar_hours):
@@ -157,9 +219,8 @@ def find_sweeps(df, lookback, hours, tf, bar_hours):
     old_high = df["high"].rolling(lookback, min_periods=lookback).max().shift(1).values
     old_low = df["low"].rolling(lookback, min_periods=lookback).min().shift(1).values
 
-    with np.errstate(invalid="ignore"):
-        high_mask = (high > old_high) & (close < old_high * (1 - BUFFER))
-        low_mask = (low < old_low) & (close > old_low * (1 + BUFFER))
+    high_mask = (high > old_high) & (close < old_high * (1 - BUFFER))
+    low_mask = (low < old_low) & (close > old_low * (1 + BUFFER))
     high_mask = np.nan_to_num(high_mask, nan=False).astype(bool)
     low_mask = np.nan_to_num(low_mask, nan=False).astype(bool)
 
@@ -183,9 +244,9 @@ def find_sweeps(df, lookback, hours, tf, bar_hours):
 # Signal Generation
 # ============================================================
 
-def scan_recent(symbol, entry_df, sweeps, state, n_recent=RECENT_CANDLES):
+def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDLES):
     signals = []
-    if entry_df.empty or len(entry_df) < 2:
+    if entry_df.empty or len(entry_df) < AROON_PERIOD + PIVOT_LEFT + PIVOT_RIGHT + 5:
         return signals
 
     used = set(state.get("used", []))
@@ -193,21 +254,19 @@ def scan_recent(symbol, entry_df, sweeps, state, n_recent=RECENT_CANDLES):
 
     for _, row in recent.iterrows():
         t = row["time"]
-        r = row["rsi"]
-
-        if pd.isna(r) or pd.isna(row["vol_avg"]) or not row["vol_ok"]:
-            continue
 
         active = [s for s in sweeps if s["time"] <= t <= s["until"]]
         active.sort(key=lambda s: s["time"], reverse=True)
 
         for sweep in active:
-            skey = f"{symbol}|{sweep['tf']}|{sweep['type']}|{sweep['time'].isoformat()}"
+            skey = f"{symbol}|{entry_tf}|{sweep['tf']}|{sweep['type']}|{sweep['time'].isoformat()}"
             if skey in used:
                 continue
 
+            # ہر قسم کے سوئپ کے لیے صرف اس کے مطابق Divergence چیک کریں
             if sweep["type"] == "LOW":
-                if r > RSI_OS:
+                # Bullish Divergence چاہیے (Aroon Down کم ہو رہا ہو)
+                if not check_bullish_divergence(entry_df):
                     continue
                 entry = row["close"]
                 sl = sweep["extreme"] * (1 - BUFFER)
@@ -217,7 +276,8 @@ def scan_recent(symbol, entry_df, sweeps, state, n_recent=RECENT_CANDLES):
                 tps = {rr: entry + risk * rr for rr in [1, 2, 3]}
                 side = "LONG"
             else:
-                if r < RSI_OB:
+                # Bearish Divergence چاہیے (Aroon Up کم ہو رہا ہو)
+                if not check_bearish_divergence(entry_df):
                     continue
                 entry = row["close"]
                 sl = sweep["extreme"] * (1 + BUFFER)
@@ -229,14 +289,15 @@ def scan_recent(symbol, entry_df, sweeps, state, n_recent=RECENT_CANDLES):
 
             used.add(skey)
             signals.append({"time": t, "side": side, "entry": entry, "sl": sl, "tps": tps,
-                            "sweep_tf": sweep["tf"], "sweep_type": sweep["type"], "sweep_key": skey})
+                            "sweep_tf": sweep["tf"], "sweep_type": sweep["type"],
+                            "entry_tf": entry_tf, "sweep_key": skey})
             break
 
     return signals
 
 
 # ============================================================
-# State Management
+# State
 # ============================================================
 
 def load_state():
@@ -258,7 +319,7 @@ def save_state(state):
 
 
 # ============================================================
-# NTFY Notification
+# NTFY
 # ============================================================
 
 def send_ntfy(symbol, signal):
@@ -268,12 +329,15 @@ def send_ntfy(symbol, signal):
     tps = signal["tps"]
 
     tp_lines = "\n".join(f"TP (1:{rr}): {tp:.6f}" for rr, tp in sorted(tps.items()))
-    title = f"{'LONG' if side == 'LONG' else 'SHORT'}: {symbol} (30M)"
+    emoji = "🚀" if side == "LONG" else "🔻"
+    title = f"{emoji} {side}: {symbol} ({signal['entry_tf']})"
 
     message = (
         f"Coin: {symbol}\n"
         f"Side: {side}\n"
+        f"Entry TF: {signal['entry_tf']}\n"
         f"Sweep: {signal['sweep_type']} ({signal['sweep_tf']})\n"
+        f"Confirmed: Aroon Divergence\n"
         f"Entry: {entry:.6f}\n"
         f"SL: {sl:.6f}\n"
         f"{tp_lines}"
@@ -291,7 +355,7 @@ def send_ntfy(symbol, signal):
             timeout=10,
         )
         resp.raise_for_status()
-        print(f"  -> NTFY Sent: {symbol} {side}")
+        print(f"  -> NTFY Sent: {symbol} {side} ({signal['entry_tf']})")
         return True
     except Exception as e:
         print(f"  -> NTFY Error: {e}")
@@ -307,27 +371,27 @@ def run_scan_cycle(symbols, state):
     for idx, symbol in enumerate(symbols):
         print(f"[{idx+1}/{len(symbols)}] {symbol}", end="\r")
 
-        daily = get_data(symbol, "1d", limit=30)
         h4 = get_data(symbol, "4h", limit=60)
-        entry_df = get_data(symbol, "30m", limit=60)
-
-        if daily.empty or h4.empty or entry_df.empty:
+        if h4.empty:
             continue
 
-        daily_sweeps = find_sweeps(daily, DAILY_LOOKBACK, DAILY_WINDOW_HOURS, "1D", bar_hours=24)
+        # 4H Sweep: 6 کینڈلز کا lookback
         h4_sweeps = find_sweeps(h4, H4_LOOKBACK, H4_WINDOW_HOURS, "4H", bar_hours=4)
-        sweeps = daily_sweeps + h4_sweeps
-
-        if not sweeps:
+        if not h4_sweeps:
             continue
 
-        entry_df = add_indicators(entry_df)
-        signals = scan_recent(symbol, entry_df, sweeps, state)
+        for entry_tf in ENTRY_TIMEFRAMES:
+            entry_df = get_data(symbol, entry_tf, limit=100)
+            if entry_df.empty:
+                continue
 
-        for signal in signals:
-            if send_ntfy(symbol, signal):
-                state.setdefault("used", []).append(signal["sweep_key"])
-                new_count += 1
+            entry_df = add_aroon(entry_df)
+            signals = scan_recent(symbol, entry_df, entry_tf, h4_sweeps, state)
+
+            for signal in signals:
+                if send_ntfy(symbol, signal):
+                    state.setdefault("used", []).append(signal["sweep_key"])
+                    new_count += 1
 
     state["used"] = state.get("used", [])[-5000:]
     print(" " * 80, end="\r")
@@ -339,24 +403,21 @@ def run_scan_cycle(symbols, state):
 # ============================================================
 
 def main():
-    if not NTFY_TOPIC:
-        print("ERROR: NTFY_TOPIC environment variable is not set.")
-        sys.exit(1)
-
     print("=" * 65)
-    print("LIQUIDITY SWEEP LIVE SCANNER")
-    print(f"Daily Lookback: {DAILY_LOOKBACK} candle (previous day)")
-    print(f"4H Lookback: {H4_LOOKBACK} candles")
+    print("LIQUIDITY SWEEP + AROON DIVERGENCE SCANNER")
+    print(f"4H Sweep Lookback: {H4_LOOKBACK} candles")
+    print(f"Entry TFs: {ENTRY_TIMEFRAMES}")
+    print(f"Aroon Period: {AROON_PERIOD}")
+    print(f"NTFY Topic: {NTFY_TOPIC}")
     print("=" * 65)
 
-    symbols = get_top_symbols()
+    symbols = get_top_500_symbols()
     if not symbols:
         print("No symbols. Exiting.")
         sys.exit(1)
 
     print(f"Scanning {len(symbols)} symbols...\n")
     state = load_state()
-    max_run_seconds = MAX_RUN_HOURS * 3600
 
     while True:
         current_utc = pd.Timestamp.now(tz='UTC').tz_localize(None)
@@ -365,9 +426,9 @@ def main():
         start = time.time()
         count = run_scan_cycle(symbols, state)
         save_state(state)
-        scan_seconds = time.time() - start
+        elapsed = time.time() - start
 
-        print(f"Scan complete in {scan_seconds/60:.1f} min. New signals: {count}")
+        print(f"Scan complete in {elapsed/60:.1f} min. New signals: {count}")
 
         now = pd.Timestamp.now(tz='UTC').tz_localize(None)
         next_scan = now.ceil(f'{SCAN_INTERVAL_MINUTES}min')
@@ -377,17 +438,9 @@ def main():
             next_scan = next_scan + pd.Timedelta(minutes=SCAN_INTERVAL_MINUTES)
             sleep_seconds = (next_scan - now).total_seconds()
 
-        # اگلا سکین پورا ہونے سے پہلے وقت ختم ہو جائے گا تو صاف طریقے سے بند ہو جاؤ
-        elapsed_total = time.time() - START_TIME
-        if elapsed_total + sleep_seconds + scan_seconds > max_run_seconds:
-            print("Time limit reached. State saved. Exiting cleanly.")
-            save_state(state)
-            break
-
         print(f"Next scan at {next_scan.strftime('%H:%M')} UTC (sleeping {sleep_seconds/60:.1f} min)")
         time.sleep(sleep_seconds)
 
 
 if __name__ == "__main__":
     main()
-        
