@@ -32,7 +32,8 @@ MAX_SYMBOLS = 500
 # --- MEXC API ---
 MEXC_BASE_URL = "https://contract.mexc.com"
 
-NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "ChartMaster786x7k2p9")
+# --- NTFY (نیا ٹاپک) ---
+NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "ChartMaster-x9Kp2mQ7vL4wZ8")
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_state.json")
 
@@ -53,9 +54,7 @@ def get_top_500_symbols():
             return get_default_symbols()
 
         tickers = data['data']
-        # صرف USDT والے فیوچرز
         usdt_tickers = [t for t in tickers if t['symbol'].endswith('_USDT')]
-        # 24h والیوم کے حساب سے سارٹ
         usdt_tickers.sort(key=lambda x: float(x.get('amount24', 0)), reverse=True)
 
         top = [t['symbol'].replace('_USDT', 'USDT') for t in usdt_tickers[:MAX_SYMBOLS]]
@@ -76,9 +75,6 @@ def get_default_symbols():
 # ============================================================
 
 def get_data(symbol, interval, limit=200):
-    """
-    MEXC سے OHLCV ڈیٹا حاصل کرنا
-    """
     interval_map = {"1d": "Day1", "4h": "Hour4", "1h": "Hour1",
                     "30m": "Min30", "15m": "Min15"}
     mexc_interval = interval_map.get(interval, "Min30")
@@ -105,7 +101,6 @@ def get_data(symbol, interval, limit=200):
     if not times:
         return pd.DataFrame()
 
-    # MEXC arrays بناتا ہے
     df = pd.DataFrame({
         "time": times,
         "open": kd.get('open', []),
@@ -115,7 +110,6 @@ def get_data(symbol, interval, limit=200):
         "volume": kd.get('vol', [])
     })
 
-    # ٹائم ٹو ڈیٹ ٹائم
     df["time"] = pd.to_datetime(df["time"].astype(float), unit="s", utc=True).dt.tz_localize(None)
 
     for c in ["open", "high", "low", "close", "volume"]:
@@ -124,11 +118,9 @@ def get_data(symbol, interval, limit=200):
     df = df.dropna()
     df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
 
-    # limit نافذ کریں (آخری کینڈلز رکھیں)
     if len(df) > limit:
         df = df.iloc[-limit:].copy()
 
-    # آخری نامکمل کینڈل نکال دیں
     if len(df) > 1:
         df = df.iloc[:-1].copy()
 
@@ -357,7 +349,7 @@ def send_ntfy(symbol, signal):
         )
         resp.raise_for_status()
         print(f"  -> NTFY Sent: {symbol} {side} ({signal['entry_tf']})")
-        time.sleep(2)  # NTFY Rate Limit سے بچنے کے لیے
+        time.sleep(2)
         return True
     except Exception as e:
         print(f"  -> NTFY Error: {e}")
