@@ -1,4 +1,4 @@
-name: RSI Divergence Scanner
+name: Live Signal Scanner
 
 on:
   schedule:
