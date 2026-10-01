@@ -14,16 +14,23 @@ BUFFER = 0.001
 
 # --- Aroon ---
 AROON_PERIOD = 14
-PIVOT_LEFT = 2
-PIVOT_RIGHT = 2
+PIVOT_LEFT = 5
+PIVOT_RIGHT = 5
 
 # --- 4H Sweep ---
 H4_LOOKBACK = 6
 H4_WINDOW_HOURS = 4
 
 # --- Entry ---
-ENTRY_TIMEFRAMES = ["15m", "30m"]
-RECENT_CANDLES = 2
+ENTRY_TIMEFRAMES = ["30m"]
+RECENT_CANDLES = 1
+
+# --- Freshness Filter ---
+MAX_ENTRY_DRIFT_PERCENT = 0.3
+MAX_PROGRESS_TO_TP1 = 0.4
+
+# --- Global Limit ---
+MAX_SIGNALS_PER_SCAN = 5
 
 SCAN_INTERVAL_MINUTES = 30
 REQUEST_DELAY = 0.20
@@ -32,24 +39,19 @@ MAX_SYMBOLS = 500
 # --- MEXC API ---
 MEXC_BASE_URL = "https://contract.mexc.com"
 
-# --- NTFY (مکمل محفوظ - ٹاپک صرف GitHub Secret سے) ---
+# --- NTFY (GitHub Secret سے - پبلک نہیں) ---
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
 if not NTFY_TOPIC:
-    print("=" * 65)
     print("ERROR: NTFY_TOPIC environment variable is not set!")
-    print("Please set it in GitHub Secrets: Settings → Secrets → NTFY_TOPIC")
-    print("=" * 65)
     sys.exit(1)
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_state.json")
-
-# --- Cooldown ---
 COOLDOWN_HOURS = 4
 
 
 # ============================================================
-# Symbols (MEXC)
+# Symbols
 # ============================================================
 
 def get_top_500_symbols():
@@ -62,11 +64,9 @@ def get_top_500_symbols():
         data = r.json()
         if not data.get('success'):
             return get_default_symbols()
-
         tickers = data['data']
         usdt_tickers = [t for t in tickers if t['symbol'].endswith('_USDT')]
         usdt_tickers.sort(key=lambda x: float(x.get('amount24', 0)), reverse=True)
-
         top = [t['symbol'].replace('_USDT', 'USDT') for t in usdt_tickers[:MAX_SYMBOLS]]
         print(f"Successfully fetched {len(top)} symbols.")
         return top
@@ -81,7 +81,34 @@ def get_default_symbols():
 
 
 # ============================================================
-# Data (MEXC)
+# Live Prices
+# ============================================================
+
+def get_all_live_prices():
+    try:
+        url = f"{MEXC_BASE_URL}/api/v1/contract/ticker"
+        r = requests.get(url, timeout=15)
+        if r.status_code != 200:
+            return {}
+        data = r.json()
+        if not data.get('success'):
+            return {}
+        prices = {}
+        for t in data['data']:
+            if t['symbol'].endswith('_USDT'):
+                symbol = t['symbol'].replace('_USDT', 'USDT')
+                try:
+                    prices[symbol] = float(t['lastPrice'])
+                except (ValueError, KeyError):
+                    continue
+        return prices
+    except Exception as e:
+        print(f"Live price fetch error: {e}")
+        return {}
+
+
+# ============================================================
+# Data
 # ============================================================
 
 def get_data(symbol, interval, limit=200):
@@ -89,10 +116,8 @@ def get_data(symbol, interval, limit=200):
                     "30m": "Min30", "15m": "Min15"}
     mexc_interval = interval_map.get(interval, "Min30")
     mexc_symbol = symbol.replace('USDT', '_USDT')
-
     url = f"{MEXC_BASE_URL}/api/v1/contract/kline/{mexc_symbol}"
     params = {"interval": mexc_interval}
-
     try:
         r = requests.get(url, params=params, timeout=15)
         if r.status_code != 200:
@@ -100,58 +125,37 @@ def get_data(symbol, interval, limit=200):
         data = r.json()
     except Exception:
         return pd.DataFrame()
-
     time.sleep(REQUEST_DELAY)
-
     if not data.get('success'):
         return pd.DataFrame()
-
     kd = data.get('data', {})
     times = kd.get('time', [])
     if not times:
         return pd.DataFrame()
-
     df = pd.DataFrame({
-        "time": times,
-        "open": kd.get('open', []),
-        "high": kd.get('high', []),
-        "low": kd.get('low', []),
-        "close": kd.get('close', []),
-        "volume": kd.get('vol', [])
+        "time": times, "open": kd.get('open', []), "high": kd.get('high', []),
+        "low": kd.get('low', []), "close": kd.get('close', []), "volume": kd.get('vol', [])
     })
-
     df["time"] = pd.to_datetime(df["time"].astype(float), unit="s", utc=True).dt.tz_localize(None)
-
     for c in ["open", "high", "low", "close", "volume"]:
         df[c] = pd.to_numeric(df[c], errors='coerce')
-
-    df = df.dropna()
-    df = df.drop_duplicates("time").sort_values("time").reset_index(drop=True)
-
+    df = df.dropna().drop_duplicates("time").sort_values("time").reset_index(drop=True)
     if len(df) > limit:
         df = df.iloc[-limit:].copy()
-
     if len(df) > 1:
         df = df.iloc[:-1].copy()
-
     return df
 
 
 # ============================================================
-# Aroon Indicator
+# Aroon
 # ============================================================
 
 def add_aroon(df, period=AROON_PERIOD):
     df = df.copy()
     window = period + 1
-
-    df["aroon_up"] = df["high"].rolling(window).apply(
-        lambda x: (x.argmax() / period) * 100, raw=True
-    )
-    df["aroon_down"] = df["low"].rolling(window).apply(
-        lambda x: (x.argmin() / period) * 100, raw=True
-    )
-
+    df["aroon_up"] = df["high"].rolling(window).apply(lambda x: (x.argmax() / period) * 100, raw=True)
+    df["aroon_down"] = df["low"].rolling(window).apply(lambda x: (x.argmin() / period) * 100, raw=True)
     return df
 
 
@@ -161,155 +165,164 @@ def add_aroon(df, period=AROON_PERIOD):
 
 def find_pivot_lows(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
     lows = df["low"].values
-    indices = []
-    for i in range(left, len(lows) - right):
-        if lows[i] == lows[i-left:i+right+1].min():
-            indices.append(i)
-    return indices
+    return [i for i in range(left, len(lows) - right)
+            if lows[i] == lows[i-left:i+right+1].min()]
 
 
 def find_pivot_highs(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
     highs = df["high"].values
-    indices = []
-    for i in range(left, len(highs) - right):
-        if highs[i] == highs[i-left:i+right+1].max():
-            indices.append(i)
-    return indices
+    return [i for i in range(left, len(highs) - right)
+            if highs[i] == highs[i-left:i+right+1].max()]
 
 
 # ============================================================
-# Divergence Detection (سخت - دونوں شرائط لازمی)
+# Divergence
 # ============================================================
 
 def check_bullish_divergence(df):
     pivot_lows = find_pivot_lows(df)
     if len(pivot_lows) < 2:
         return False
-
     last, prev = pivot_lows[-1], pivot_lows[-2]
-
-    price_lower_low = df["low"].iloc[last] < df["low"].iloc[prev]
-    if not price_lower_low:
+    if df["low"].iloc[last] >= df["low"].iloc[prev]:
         return False
-
     aroon_down_lower = df["aroon_down"].iloc[last] < df["aroon_down"].iloc[prev]
     aroon_up_higher = df["aroon_up"].iloc[last] > df["aroon_up"].iloc[prev]
-
-    return aroon_down_lower and aroon_up_higher
+    aroon_oversold = df["aroon_down"].iloc[last] < 40
+    return aroon_down_lower and aroon_up_higher and aroon_oversold
 
 
 def check_bearish_divergence(df):
     pivot_highs = find_pivot_highs(df)
     if len(pivot_highs) < 2:
         return False
-
     last, prev = pivot_highs[-1], pivot_highs[-2]
-
-    price_higher_high = df["high"].iloc[last] > df["high"].iloc[prev]
-    if not price_higher_high:
+    if df["high"].iloc[last] <= df["high"].iloc[prev]:
         return False
-
     aroon_up_lower = df["aroon_up"].iloc[last] < df["aroon_up"].iloc[prev]
     aroon_down_higher = df["aroon_down"].iloc[last] > df["aroon_down"].iloc[prev]
-
-    return aroon_up_lower and aroon_down_higher
+    aroon_overbought = df["aroon_up"].iloc[last] > 60
+    return aroon_up_lower and aroon_down_higher and aroon_overbought
 
 
 # ============================================================
-# 4H Sweep Detection
+# Sweeps
 # ============================================================
 
 def find_sweeps(df, lookback, hours, tf, bar_hours):
     if df.empty or len(df) <= lookback:
         return []
-
     high = df["high"].values
     low = df["low"].values
     close = df["close"].values
     time_series = df["time"]
-
     old_high = df["high"].rolling(lookback, min_periods=lookback).max().shift(1).values
     old_low = df["low"].rolling(lookback, min_periods=lookback).min().shift(1).values
-
     high_mask = (high > old_high) & (close < old_high * (1 - BUFFER))
     low_mask = (low < old_low) & (close > old_low * (1 + BUFFER))
     high_mask = np.nan_to_num(high_mask, nan=False).astype(bool)
     low_mask = np.nan_to_num(low_mask, nan=False).astype(bool)
-
     sweeps = []
     delta = pd.Timedelta(hours=hours)
     bar = pd.Timedelta(hours=bar_hours)
-
     for i in np.where(high_mask)[0]:
         t = time_series.iloc[i] + bar
         sweeps.append({"time": t, "type": "HIGH", "extreme": high[i], "until": t + delta, "tf": tf})
-
     for i in np.where(low_mask)[0]:
         t = time_series.iloc[i] + bar
         sweeps.append({"time": t, "type": "LOW", "extreme": low[i], "until": t + delta, "tf": tf})
-
     sweeps.sort(key=lambda x: x["time"])
     return sweeps
 
 
 # ============================================================
-# Signal Generation (سخت + Cooldown)
+# Signal Generation (5 TPs کے ساتھ)
 # ============================================================
 
-def scan_recent(symbol, entry_df, entry_tf, sweeps, state, n_recent=RECENT_CANDLES):
-    signals = []
+def scan_recent(symbol, entry_df, entry_tf, sweeps, state, live_price, n_recent=RECENT_CANDLES):
     if entry_df.empty or len(entry_df) < AROON_PERIOD + PIVOT_LEFT + PIVOT_RIGHT + 5:
-        return signals
+        return []
+    if live_price is None or live_price <= 0:
+        return []
 
     used = set(state.get("used", []))
     cooldown = state.get("cooldown", {})
-
     now_utc = pd.Timestamp.now(tz='UTC').tz_localize(None)
-    if symbol in cooldown:
-        last_signal_time = pd.Timestamp(cooldown[symbol])
-        if (now_utc - last_signal_time).total_seconds() < COOLDOWN_HOURS * 3600:
-            return signals
 
+    if symbol in cooldown:
+        last = pd.Timestamp(cooldown[symbol])
+        if (now_utc - last).total_seconds() < COOLDOWN_HOURS * 3600:
+            return []
+
+    signals = []
     recent = entry_df.iloc[-n_recent:]
 
     for _, row in recent.iterrows():
         t = row["time"]
-        active = [s for s in sweeps if s["time"] <= t <= s["until"]]
-        active.sort(key=lambda s: s["time"], reverse=True)
+        active = sorted([s for s in sweeps if s["time"] <= t <= s["until"]],
+                        key=lambda s: s["time"], reverse=True)
 
         for sweep in active:
             skey = f"{symbol}|{sweep['tf']}|{sweep['type']}"
             if skey in used:
                 continue
 
-            if sweep["type"] == "LOW":
-                if not check_bullish_divergence(entry_df):
-                    continue
-                entry = row["close"]
-                sl = sweep["extreme"] * (1 - BUFFER)
-                risk = entry - sl
-                if risk <= 0:
-                    continue
-                tps = {rr: entry + risk * rr for rr in [1, 2, 3]}
-                side = "LONG"
+            is_low = sweep["type"] == "LOW"
+            side = "LONG" if is_low else "SHORT"
+
+            if is_low and not check_bullish_divergence(entry_df):
+                continue
+            if not is_low and not check_bearish_divergence(entry_df):
+                continue
+
+            candle_close = row["close"]
+            sl = sweep["extreme"] * ((1 - BUFFER) if is_low else (1 + BUFFER))
+            original_risk = (candle_close - sl) if is_low else (sl - candle_close)
+
+            if original_risk <= 0:
+                continue
+
+            drift_pct = abs(live_price - candle_close) / candle_close * 100
+            if drift_pct > MAX_ENTRY_DRIFT_PERCENT:
+                used.add(skey)
+                continue
+
+            if is_low:
+                progress = (live_price - candle_close) / original_risk
             else:
-                if not check_bearish_divergence(entry_df):
-                    continue
-                entry = row["close"]
-                sl = sweep["extreme"] * (1 + BUFFER)
-                risk = sl - entry
-                if risk <= 0:
-                    continue
-                tps = {rr: entry - risk * rr for rr in [1, 2, 3]}
-                side = "SHORT"
+                progress = (candle_close - live_price) / original_risk
+
+            if progress > MAX_PROGRESS_TO_TP1:
+                used.add(skey)
+                continue
+            if progress < -0.5:
+                used.add(skey)
+                continue
+
+            entry = live_price
+            risk = (entry - sl) if is_low else (sl - entry)
+            if risk <= 0:
+                continue
+
+            risk_pct = (risk / entry) * 100
+            if risk_pct < 0.2:
+                used.add(skey)
+                continue
+
+            # 5 TPs بنائیں (RR 1:1 سے 1:5)
+            direction = 1 if is_low else -1
+            tps = {rr: entry + direction * risk * rr for rr in [1, 2, 3, 4, 5]}
 
             used.add(skey)
             cooldown[symbol] = now_utc.isoformat()
             state["cooldown"] = cooldown
 
-            signals.append({"time": t, "side": side, "entry": entry, "sl": sl, "tps": tps,
-                            "sweep_tf": sweep["tf"], "sweep_type": sweep["type"],
-                            "entry_tf": entry_tf, "sweep_key": skey})
+            signals.append({
+                "time": t, "side": side, "entry": entry, "sl": sl, "tps": tps,
+                "sweep_tf": sweep["tf"], "sweep_type": sweep["type"],
+                "entry_tf": entry_tf, "sweep_key": skey,
+                "drift_pct": round(drift_pct, 3), "risk_pct": round(risk_pct, 3)
+            })
             break
 
     return signals
@@ -338,7 +351,7 @@ def save_state(state):
 
 
 # ============================================================
-# NTFY (مکمل محفوظ)
+# NTFY (صاف فارمیٹ - کوئی اسٹریٹجی ظاہر نہیں)
 # ============================================================
 
 def send_ntfy(symbol, signal):
@@ -347,18 +360,32 @@ def send_ntfy(symbol, signal):
     sl = signal["sl"]
     tps = signal["tps"]
 
-    tp_lines = "\n".join(f"TP (1:{rr}): {tp:.6f}" for rr, tp in sorted(tps.items()))
-    title = f"{side}: {symbol} ({signal['entry_tf']})"
+    # TP لائنیں
+    tp_lines = "\n".join(
+        f"🎯 TP{i}: {tps[i]:.6f}" for i in sorted(tps.keys())
+    )
 
+    # Position اور arrow
+    if side == "LONG":
+        position_text = "Long Buy"
+        arrow = "🚀"
+        direction_emoji = "📈"
+    else:
+        position_text = "Short Sell"
+        arrow = "🔻"
+        direction_emoji = "📉"
+
+    # Title (بغیر ایموجی - latin-1 encoding issue سے بچنے کے لیے)
+    title = f"{symbol} SIGNAL"
+
+    # Message
     message = (
-        f"Coin: {symbol}\n"
-        f"Side: {side}\n"
-        f"Entry TF: {signal['entry_tf']}\n"
-        f"Sweep: {signal['sweep_type']} ({signal['sweep_tf']})\n"
-        f"Confirmed: Aroon Divergence\n"
-        f"Entry: {entry:.6f}\n"
-        f"SL: {sl:.6f}\n"
-        f"{tp_lines}"
+        f"🚨 {symbol} SIGNAL 🚨\n\n"
+        f"{arrow} Position: {position_text} {direction_emoji}\n"
+        f"⚡ Leverage: 10x–20x\n"
+        f"🎯 Entry: {entry:.6f}\n\n"
+        f"{tp_lines}\n\n"
+        f"🛑 SL: {sl:.6f}"
     )
 
     try:
@@ -368,12 +395,12 @@ def send_ntfy(symbol, signal):
             headers={
                 "Title": title,
                 "Priority": "high",
-                "Tags": "rocket" if side == "LONG" else "arrow_down",
+                "Tags": "rotating_light" if side == "LONG" else "rotating_light",
             },
             timeout=10,
         )
         resp.raise_for_status()
-        print(f"  -> NTFY Sent: {symbol} {side} ({signal['entry_tf']})")
+        print(f"  -> NTFY Sent: {symbol} {side} | Entry: {entry:.6f}")
         time.sleep(2)
         return True
     except Exception as e:
@@ -387,8 +414,21 @@ def send_ntfy(symbol, signal):
 
 def run_scan_cycle(symbols, state):
     new_count = 0
+
+    print("\nFetching live prices...")
+    live_prices = get_all_live_prices()
+    print(f"Got live prices for {len(live_prices)} symbols.")
+
     for idx, symbol in enumerate(symbols):
+        if new_count >= MAX_SIGNALS_PER_SCAN:
+            print(f"\nMax signals limit ({MAX_SIGNALS_PER_SCAN}) reached. Stopping.")
+            break
+
         print(f"[{idx+1}/{len(symbols)}] {symbol}", end="\r")
+
+        live_price = live_prices.get(symbol)
+        if live_price is None:
+            continue
 
         h4 = get_data(symbol, "4h", limit=60)
         if h4.empty:
@@ -402,14 +442,16 @@ def run_scan_cycle(symbols, state):
             entry_df = get_data(symbol, entry_tf, limit=100)
             if entry_df.empty:
                 continue
-
             entry_df = add_aroon(entry_df)
-            signals = scan_recent(symbol, entry_df, entry_tf, h4_sweeps, state)
+
+            signals = scan_recent(symbol, entry_df, entry_tf, h4_sweeps, state, live_price)
 
             for signal in signals:
                 if send_ntfy(symbol, signal):
                     state.setdefault("used", []).append(signal["sweep_key"])
                     new_count += 1
+                    if new_count >= MAX_SIGNALS_PER_SCAN:
+                        break
 
     state["used"] = state.get("used", [])[-5000:]
     print(" " * 80, end="\r")
@@ -423,10 +465,11 @@ def run_scan_cycle(symbols, state):
 def main():
     print("=" * 65)
     print("LIQUIDITY SWEEP + AROON DIVERGENCE SCANNER (MEXC)")
-    print(f"4H Sweep Lookback: {H4_LOOKBACK} candles | Window: {H4_WINDOW_HOURS}h")
+    print(f"4H Sweep Lookback: {H4_LOOKBACK} | Window: {H4_WINDOW_HOURS}h")
     print(f"Entry TFs: {ENTRY_TIMEFRAMES} | Recent Candles: {RECENT_CANDLES}")
     print(f"Aroon Period: {AROON_PERIOD} | Cooldown: {COOLDOWN_HOURS}h")
-    print(f"NTFY Topic: [HIDDEN - loaded from GitHub Secret]")
+    print(f"Max Signals per Scan: {MAX_SIGNALS_PER_SCAN}")
+    print(f"NTFY Topic: [HIDDEN - from GitHub Secret]")
     print("=" * 65)
 
     symbols = get_top_500_symbols()
@@ -440,18 +483,15 @@ def main():
     while True:
         current_utc = pd.Timestamp.now(tz='UTC').tz_localize(None)
         print(f"\n[{current_utc.strftime('%Y-%m-%d %H:%M:%S')} UTC] Scan starting...")
-
         start = time.time()
         count = run_scan_cycle(symbols, state)
         save_state(state)
         elapsed = time.time() - start
-
         print(f"Scan complete in {elapsed/60:.1f} min. New signals: {count}")
 
         now = pd.Timestamp.now(tz='UTC').tz_localize(None)
         next_scan = now.ceil(f'{SCAN_INTERVAL_MINUTES}min')
         sleep_seconds = (next_scan - now).total_seconds()
-
         if sleep_seconds < 30:
             next_scan = next_scan + pd.Timedelta(minutes=SCAN_INTERVAL_MINUTES)
             sleep_seconds = (next_scan - now).total_seconds()
