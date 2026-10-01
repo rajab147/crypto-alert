@@ -1,4 +1,4 @@
-name: Binance Liquidity Sweep Scanner
+name: RSI Divergence Scanner
 
 on:
   schedule:
