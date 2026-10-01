@@ -14,55 +14,62 @@ BUFFER = 0.001
 
 # --- RSI ---
 RSI_PERIOD = 11
-RSI_OVERBOUGHT = 70
-RSI_OVERSOLD = 30
+RSI_OVERBOUGHT = 60
+RSI_OVERSOLD = 40
 
 # --- Volume ---
-VOLUME_LOOKBACK = 5          # پچھلی 5 کینڈلز سے موازنہ
-CLIMAX_VOLUME_MULT = 2.0     # اوسط سے 2 گنا (Climax کے لیے)
-CLIMAX_BODY_MULT = 1.5       # اوسط باڈی سے 1.5 گنا
+VOLUME_LOOKBACK = 3
+CLIMAX_VOLUME_MULT = 1.3
+CLIMAX_BODY_MULT = 1.0
+
+# --- Rejection Candle ---
+REJECTION_WICK_RATIO = 2.0
+REJECTION_BODY_MAX = 0.4
 
 # --- Sweep ---
-DAILY_LOOKBACK = 1
 H4_LOOKBACK = 5
-DAILY_WINDOW_HOURS = 24
-H4_WINDOW_HOURS = 8
+DAILY_LOOKBACK = 1
 
 # --- Pivot ---
 PIVOT_LEFT = 2
 PIVOT_RIGHT = 2
 
 # --- Entry ---
-ENTRY_TIMEFRAMES = ["15m", "30m"]   # دونوں لازمی
-MAX_ENTRY_DRIFT_PERCENT = 1.0
+ENTRY_TIMEFRAMES = ["15m", "30m"]
+RECENT_CANDLES = 2          # صرف تازہ ترین 2 بند کینڈلز
 
-# --- Symbols ---
-MAX_SYMBOLS = 200                    # صرف Top 200
+# --- Risk ---
+MIN_RISK_PERCENT = 0.1
+MAX_ENTRY_DRIFT_PERCENT = 0.8   # Live price اور candle close میں زیادہ فرق نہ ہو
 
 # --- Global ---
-MAX_SIGNALS_PER_SCAN = 5
+MAX_SYMBOLS = 500
+MAX_SIGNALS_PER_SCAN = 10
 SCAN_INTERVAL_MINUTES = 30
-REQUEST_DELAY = 0.20
+REQUEST_DELAY = 0.15
 
+# --- MEXC API ---
 MEXC_BASE_URL = "https://contract.mexc.com"
 
-# --- NTFY (GitHub Secret) ---
+# --- NTFY (GitHub Secret سے - پرائیویٹ) ---
 NTFY_TOPIC = os.environ.get("NTFY_TOPIC", "").strip()
 if not NTFY_TOPIC:
-    print("ERROR: NTFY_TOPIC not set in GitHub Secrets!")
+    print("=" * 65)
+    print("ERROR: NTFY_TOPIC environment variable is not set!")
+    print("Please set it in GitHub Secrets: Settings -> Secrets -> NTFY_TOPIC")
+    print("=" * 65)
     sys.exit(1)
 NTFY_URL = f"https://ntfy.sh/{NTFY_TOPIC}"
 
 STATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scanner_state.json")
 COOLDOWN_HOURS = 4
-MIN_RISK_PERCENT = 0.15
 
 
 # ============================================================
-# Symbols
+# Symbols (Top 500 from MEXC)
 # ============================================================
 
-def get_top_200_symbols():
+def get_top_500_symbols():
     print(f"Fetching Top {MAX_SYMBOLS} USDT Perpetual Symbols from MEXC...")
     try:
         url = f"{MEXC_BASE_URL}/api/v1/contract/ticker"
@@ -72,11 +79,12 @@ def get_top_200_symbols():
         data = r.json()
         if not data.get('success'):
             return get_default_symbols()
+
         tickers = data['data']
-        usdt = [t for t in tickers if t['symbol'].endswith('_USDT')]
-        usdt.sort(key=lambda x: float(x.get('amount24', 0)), reverse=True)
-        top = [t['symbol'].replace('_USDT', 'USDT') for t in usdt[:MAX_SYMBOLS]]
-        print(f"Fetched {len(top)} symbols.")
+        usdt_tickers = [t for t in tickers if t['symbol'].endswith('_USDT')]
+        usdt_tickers.sort(key=lambda x: float(x.get('amount24', 0)), reverse=True)
+        top = [t['symbol'].replace('_USDT', 'USDT') for t in usdt_tickers[:MAX_SYMBOLS]]
+        print(f"Successfully fetched {len(top)} symbols.")
         return top
     except Exception as e:
         print(f"Error: {e}")
@@ -84,12 +92,11 @@ def get_top_200_symbols():
 
 
 def get_default_symbols():
-    return ["SOLUSDT", "NEARUSDT", "SUIUSDT", "APTUSDT", "ARBUSDT",
-            "OPUSDT", "DOGEUSDT", "AVAXUSDT", "LINKUSDT", "ADAUSDT"]
+    return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"]
 
 
 # ============================================================
-# Live Prices
+# Live Prices (Bulk)
 # ============================================================
 
 def get_all_live_prices():
@@ -115,41 +122,61 @@ def get_all_live_prices():
 
 
 # ============================================================
-# Data
+# Data Fetching
 # ============================================================
 
 def get_data(symbol, interval, limit=200):
-    imap = {"1d": "Day1", "4h": "Hour4", "1h": "Hour1", "30m": "Min30", "15m": "Min15"}
+    imap = {"1d": "Day1", "4h": "Hour4", "1h": "Hour1",
+            "30m": "Min30", "15m": "Min15"}
     mexc_interval = imap.get(interval, "Min30")
     mexc_symbol = symbol.replace('USDT', '_USDT')
+
     url = f"{MEXC_BASE_URL}/api/v1/contract/kline/{mexc_symbol}"
     params = {"interval": mexc_interval}
-    try:
-        r = requests.get(url, params=params, timeout=15)
-        if r.status_code != 200:
-            return pd.DataFrame()
-        data = r.json()
-    except:
+
+    data = None
+    for attempt in range(3):
+        try:
+            r = requests.get(url, params=params, timeout=20)
+            if r.status_code != 200:
+                time.sleep(2)
+                continue
+            data = r.json()
+            break
+        except Exception:
+            time.sleep(2)
+
+    if data is None:
         return pd.DataFrame()
+
     time.sleep(REQUEST_DELAY)
+
     if not data.get('success'):
         return pd.DataFrame()
+
     kd = data.get('data', {})
     times = kd.get('time', [])
     if not times:
         return pd.DataFrame()
+
     df = pd.DataFrame({
         "time": times, "open": kd.get('open', []), "high": kd.get('high', []),
         "low": kd.get('low', []), "close": kd.get('close', []), "volume": kd.get('vol', [])
     })
+
     df["time"] = pd.to_datetime(df["time"].astype(float), unit="s", utc=True).dt.tz_localize(None)
     for c in ["open", "high", "low", "close", "volume"]:
         df[c] = pd.to_numeric(df[c], errors='coerce')
+
     df = df.dropna().drop_duplicates("time").sort_values("time").reset_index(drop=True)
-    if len(df) > limit:
-        df = df.iloc[-limit:].copy()
+
+    # ✅ آخری نامکمل کینڈل نکال دیں (Look-ahead Bias سے بچنے کے لیے)
     if len(df) > 1:
         df = df.iloc[:-1].copy()
+
+    if len(df) > limit:
+        df = df.iloc[-limit:].copy()
+
     return df
 
 
@@ -171,293 +198,145 @@ def add_rsi(df, period=RSI_PERIOD):
 
 
 # ============================================================
-# Engulfing Detection
+# Rejection Candle
 # ============================================================
 
-def is_bullish_engulfing(df):
-    """Buy Engulfing: موجودہ ہری کینڈل پچھلی سرخ کو نگل لے"""
-    if len(df) < 2:
+def is_bullish_rejection(df, i):
+    if i < 1:
         return False
-    prev = df.iloc[-2]
-    curr = df.iloc[-1]
-    prev_bearish = prev["close"] < prev["open"]
-    curr_bullish = curr["close"] > curr["open"]
-    engulfs = curr["open"] <= prev["close"] and curr["close"] >= prev["open"]
-    return prev_bearish and curr_bullish and engulfs
-
-
-def is_bearish_engulfing(df):
-    """Sell Engulfing: موجودہ سرخ کینڈل پچھلی ہری کو نگل لے"""
-    if len(df) < 2:
+    curr = df.iloc[i]
+    body = abs(curr["close"] - curr["open"])
+    total_range = curr["high"] - curr["low"]
+    if total_range == 0:
         return False
-    prev = df.iloc[-2]
-    curr = df.iloc[-1]
-    prev_bullish = prev["close"] > prev["open"]
-    curr_bearish = curr["close"] < curr["open"]
-    engulfs = curr["open"] >= prev["close"] and curr["close"] <= prev["open"]
-    return prev_bullish and curr_bearish and engulfs
+    lower_wick = min(curr["close"], curr["open"]) - curr["low"]
+    upper_wick = curr["high"] - max(curr["close"], curr["open"])
+    return (lower_wick > body * REJECTION_WICK_RATIO
+            and lower_wick > upper_wick
+            and body < total_range * REJECTION_BODY_MAX)
 
 
-def has_small_volume(df, lookback=VOLUME_LOOKBACK):
-    """انگلوفنگ کینڈل کا والیوم چھوٹا ہو"""
-    if len(df) < lookback + 1:
+def is_bearish_rejection(df, i):
+    if i < 1:
         return False
-    curr_vol = df["volume"].iloc[-1]
-    prev_avg = df["volume"].iloc[-(lookback + 1):-1].mean()
-    return curr_vol < prev_avg
+    curr = df.iloc[i]
+    body = abs(curr["close"] - curr["open"])
+    total_range = curr["high"] - curr["low"]
+    if total_range == 0:
+        return False
+    lower_wick = min(curr["close"], curr["open"]) - curr["low"]
+    upper_wick = curr["high"] - max(curr["close"], curr["open"])
+    return (upper_wick > body * REJECTION_WICK_RATIO
+            and upper_wick > lower_wick
+            and body < total_range * REJECTION_BODY_MAX)
 
 
 # ============================================================
-# Volume Climax
+# Climax
 # ============================================================
 
-def is_buy_climax(df, lookback=VOLUME_LOOKBACK):
-    """بڑی والیوم + بڑی ہری باڈی والی کینڈل (خریداری کا کلائمیکس)"""
-    if len(df) < lookback + 1:
+def is_buy_climax(df, i, lookback=VOLUME_LOOKBACK):
+    if i < lookback:
         return False
-    curr = df.iloc[-1]
-    curr_vol = curr["volume"]
-    curr_body = curr["body"]
-    avg_vol = df["volume"].iloc[-(lookback+1):-1].mean()
-    avg_body = df["body"].iloc[-(lookback+1):-1].mean()
-    # ہری کینڈل + بڑی والیوم + بڑی باڈی
-    return (curr["close"] > curr["open"] 
-            and curr_vol > avg_vol * CLIMAX_VOLUME_MULT
-            and curr_body > avg_body * CLIMAX_BODY_MULT)
+    curr = df.iloc[i]
+    avg_vol = df["volume"].iloc[i-lookback:i].mean()
+    avg_body = df["body"].iloc[i-lookback:i].mean()
+    if pd.isna(avg_vol) or pd.isna(avg_body) or avg_vol == 0 or avg_body == 0:
+        return False
+    return (curr["close"] > curr["open"]
+            and curr["volume"] > avg_vol * CLIMAX_VOLUME_MULT
+            and curr["body"] >= avg_body * CLIMAX_BODY_MULT)
 
 
-def is_sell_climax(df, lookback=VOLUME_LOOKBACK):
-    """بڑی والیوم + بڑی سرخ باڈی والی کینڈل (فروخت کا کلائمیکس)"""
-    if len(df) < lookback + 1:
+def is_sell_climax(df, i, lookback=VOLUME_LOOKBACK):
+    if i < lookback:
         return False
-    curr = df.iloc[-1]
-    curr_vol = curr["volume"]
-    curr_body = curr["body"]
-    avg_vol = df["volume"].iloc[-(lookback+1):-1].mean()
-    avg_body = df["body"].iloc[-(lookback+1):-1].mean()
+    curr = df.iloc[i]
+    avg_vol = df["volume"].iloc[i-lookback:i].mean()
+    avg_body = df["body"].iloc[i-lookback:i].mean()
+    if pd.isna(avg_vol) or pd.isna(avg_body) or avg_vol == 0 or avg_body == 0:
+        return False
     return (curr["close"] < curr["open"]
-            and curr_vol > avg_vol * CLIMAX_VOLUME_MULT
-            and curr_body > avg_body * CLIMAX_BODY_MULT)
+            and curr["volume"] > avg_vol * CLIMAX_VOLUME_MULT
+            and curr["body"] >= avg_body * CLIMAX_BODY_MULT)
 
 
 # ============================================================
-# Pivot & RSI Divergence
+# Pivot & Divergence
 # ============================================================
 
-def find_pivot_lows(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
+def find_pivot_lows(df, end_idx, left=PIVOT_LEFT, right=PIVOT_RIGHT):
     lows = df["low"].values
-    return [i for i in range(left, len(lows) - right)
-            if lows[i] == lows[i-left:i+right+1].min()]
+    start = max(0, end_idx - 60)
+    result = []
+    for k in range(start + left, end_idx - right + 1):
+        if k < len(lows) - right:
+            window = lows[k-left:k+right+1]
+            if len(window) == left + right + 1 and lows[k] == window.min():
+                result.append(k)
+    return result
 
 
-def find_pivot_highs(df, left=PIVOT_LEFT, right=PIVOT_RIGHT):
+def find_pivot_highs(df, end_idx, left=PIVOT_LEFT, right=PIVOT_RIGHT):
     highs = df["high"].values
-    return [i for i in range(left, len(highs) - right)
-            if highs[i] == highs[i-left:i+right+1].max()]
+    start = max(0, end_idx - 60)
+    result = []
+    for k in range(start + left, end_idx - right + 1):
+        if k < len(highs) - right:
+            window = highs[k-left:k+right+1]
+            if len(window) == left + right + 1 and highs[k] == window.max():
+                result.append(k)
+    return result
 
 
-def check_bullish_rsi_divergence(df):
-    pivots = find_pivot_lows(df)
+def check_bullish_rsi_divergence(df, end_idx):
+    pivots = find_pivot_lows(df, end_idx)
     if len(pivots) < 2:
         return False
     last, prev = pivots[-1], pivots[-2]
-    price_ll = df["low"].iloc[last] < df["low"].iloc[prev]
-    rsi_hl = df["rsi"].iloc[last] > df["rsi"].iloc[prev]
-    return price_ll and rsi_hl
+    return (df["low"].iloc[last] < df["low"].iloc[prev]
+            and df["rsi"].iloc[last] > df["rsi"].iloc[prev])
 
 
-def check_bearish_rsi_divergence(df):
-    pivots = find_pivot_highs(df)
+def check_bearish_rsi_divergence(df, end_idx):
+    pivots = find_pivot_highs(df, end_idx)
     if len(pivots) < 2:
         return False
     last, prev = pivots[-1], pivots[-2]
-    price_hh = df["high"].iloc[last] > df["high"].iloc[prev]
-    rsi_lh = df["rsi"].iloc[last] < df["rsi"].iloc[prev]
-    return price_hh and rsi_lh
+    return (df["high"].iloc[last] > df["high"].iloc[prev]
+            and df["rsi"].iloc[last] < df["rsi"].iloc[prev])
 
 
 # ============================================================
-# Sweep Detection
+# Entry Conditions
 # ============================================================
 
-def get_previous_day_levels(daily_df):
-    if daily_df.empty or len(daily_df) < 1:
-        return None, None
-    prev = daily_df.iloc[-1]
-    return prev["high"], prev["low"]
+def check_entry_conditions(df, i):
+    min_needed = max(RSI_PERIOD, VOLUME_LOOKBACK, PIVOT_LEFT + PIVOT_RIGHT) + 5
+    if i < min_needed or i >= len(df):
+        return False, False
 
+    last_rsi = df["rsi"].iloc[i]
+    if pd.isna(last_rsi):
+        return False, False
 
-def get_h4_sweep_levels(h4_df, lookback=H4_LOOKBACK):
-    if h4_df.empty or len(h4_df) < lookback:
-        return None, None
-    recent = h4_df.iloc[-lookback:]
-    return recent["high"].max(), recent["low"].min()
+    # LONG
+    if is_bullish_rejection(df, i):
+        bull_div = check_bullish_rsi_divergence(df, i)
+        oversold = last_rsi < RSI_OVERSOLD
+        sell_climax = is_sell_climax(df, i)
+        if bull_div or oversold or sell_climax:
+            return True, False
 
+    # SHORT
+    if is_bearish_rejection(df, i):
+        bear_div = check_bearish_rsi_divergence(df, i)
+        overbought = last_rsi > RSI_OVERBOUGHT
+        buy_climax = is_buy_climax(df, i)
+        if bear_div or overbought or buy_climax:
+            return False, True
 
-def check_daily_sweep(live_price, prev_high, prev_low):
-    if prev_high is None or prev_low is None:
-        return None
-    if live_price > prev_high * (1 + BUFFER):
-        return "HIGH"
-    if live_price < prev_low * (1 - BUFFER):
-        return "LOW"
-    return None
-
-
-def check_h4_sweep(live_price, h4_high, h4_low):
-    if h4_high is None or h4_low is None:
-        return None
-    if live_price > h4_high * (1 + BUFFER):
-        return "HIGH"
-    if live_price < h4_low * (1 - BUFFER):
-        return "LOW"
-    return None
-
-
-# ============================================================
-# Entry Confirmation (دونوں ٹائم فریمز پر)
-# ============================================================
-
-def check_entry_conditions(df):
-    """
-    ایک ٹائم فریم پر تمام شرائط چیک کریں:
-    - Engulfing
-    - Small Volume
-    - RSI Divergence OR Overbought/Oversold
-    - Climax (Buy or Sell)
-    Return: (is_long, is_short, details)
-    """
-    if df.empty or len(df) < RSI_PERIOD + VOLUME_LOOKBACK + 5:
-        return False, False, {}
-
-    details = {}
-    last_rsi = df["rsi"].iloc[-1]
-
-    # --- LONG کی شرائط ---
-    bull_engulf = is_bullish_engulfing(df)
-    small_vol = has_small_volume(df)
-    bull_div = check_bullish_rsi_divergence(df)
-    oversold = pd.notna(last_rsi) and last_rsi < RSI_OVERSOLD
-    sell_climax = is_sell_climax(df)   # نیچے کا کلائمیکس (LONG کے لیے)
-
-    long_ok = (bull_engulf and small_vol 
-               and (bull_div or oversold) 
-               and sell_climax)
-
-    details["long"] = {
-        "engulf": bull_engulf, "small_vol": small_vol,
-        "div": bull_div, "oversold": oversold, "climax": sell_climax
-    }
-
-    # --- SHORT کی شرائط ---
-    bear_engulf = is_bearish_engulfing(df)
-    bear_div = check_bearish_rsi_divergence(df)
-    overbought = pd.notna(last_rsi) and last_rsi > RSI_OVERBOUGHT
-    buy_climax = is_buy_climax(df)   # اوپر کا کلائمیکس (SHORT کے لیے)
-
-    short_ok = (bear_engulf and small_vol 
-                and (bear_div or overbought) 
-                and buy_climax)
-
-    details["short"] = {
-        "engulf": bear_engulf, "small_vol": small_vol,
-        "div": bear_div, "overbought": overbought, "climax": buy_climax
-    }
-
-    return long_ok, short_ok, details
-
-
-def check_both_timeframes(symbol, state):
-    """
-    15m اور 30m دونوں پر شرائط چیک کریں
-    """
-    results = {}
-    for tf in ENTRY_TIMEFRAMES:
-        df = get_data(symbol, tf, limit=100)
-        if df.empty:
-            return None
-        df = add_rsi(df)
-        long_ok, short_ok, details = check_entry_conditions(df)
-        results[tf] = {"long": long_ok, "short": short_ok, "details": details}
-        time.sleep(REQUEST_DELAY)
-
-    # دونوں ٹائم فریمز پر ایک ہی سمت کی تصدیق
-    both_long = all(results[tf]["long"] for tf in ENTRY_TIMEFRAMES if tf in results)
-    both_short = all(results[tf]["short"] for tf in ENTRY_TIMEFRAMES if tf in results)
-
-    return {"both_long": both_long, "both_short": both_short, "per_tf": results}
-
-
-# ============================================================
-# Signal Generation
-# ============================================================
-
-def scan_symbol(symbol, live_price, daily_df, h4_df, state):
-    if live_price is None or live_price <= 0:
-        return None
-
-    now_utc = pd.Timestamp.now(tz='UTC').tz_localize(None)
-    cooldown = state.get("cooldown", {})
-    if symbol in cooldown:
-        last = pd.Timestamp(cooldown[symbol])
-        if (now_utc - last).total_seconds() < COOLDOWN_HOURS * 3600:
-            return None
-
-    # سوئپ چیک
-    prev_high, prev_low = get_previous_day_levels(daily_df)
-    h4_high, h4_low = get_h4_sweep_levels(h4_df)
-
-    daily_sweep = check_daily_sweep(live_price, prev_high, prev_low)
-    h4_sweep = check_h4_sweep(live_price, h4_high, h4_low)
-
-    if not daily_sweep and not h4_sweep:
-        return None
-
-    # سمت کا تعین
-    if daily_sweep == "HIGH" or h4_sweep == "HIGH":
-        expected_side = "SHORT"
-        sweep_extreme = max([x for x in [prev_high, h4_high] if x is not None])
-    else:
-        expected_side = "LONG"
-        sweep_extreme = min([x for x in [prev_low, h4_low] if x is not None])
-
-    # دونوں ٹائم فریمز پر انٹری کنفرمیشن
-    tf_result = check_both_timeframes(symbol, state)
-    if tf_result is None:
-        return None
-
-    if expected_side == "LONG" and not tf_result["both_long"]:
-        return None
-    if expected_side == "SHORT" and not tf_result["both_short"]:
-        return None
-
-    # Entry, SL, TPs
-    entry = live_price
-    sl = sweep_extreme * ((1 - BUFFER) if expected_side == "LONG" else (1 + BUFFER))
-    risk = (entry - sl) if expected_side == "LONG" else (sl - entry)
-
-    if risk <= 0:
-        return None
-
-    risk_pct = (risk / entry) * 100
-    if risk_pct < MIN_RISK_PERCENT:
-        return None
-
-    direction = 1 if expected_side == "LONG" else -1
-    tps = {rr: entry + direction * risk * rr for rr in [1, 2, 3, 4, 5]}
-
-    cooldown[symbol] = now_utc.isoformat()
-    state["cooldown"] = cooldown
-
-    return {
-        "symbol": symbol,
-        "side": expected_side,
-        "entry": entry,
-        "sl": sl,
-        "tps": tps,
-        "entry_tf": "15m+30m",
-        "risk_pct": round(risk_pct, 3)
-    }
+    return False, False
 
 
 # ============================================================
@@ -469,7 +348,7 @@ def load_state():
         try:
             with open(STATE_FILE, "r") as f:
                 return json.load(f)
-        except:
+        except Exception:
             return {}
     return {}
 
@@ -480,6 +359,134 @@ def save_state(state):
             json.dump(state, f)
     except Exception as e:
         print("State save error:", e)
+
+
+# ============================================================
+# Signal Scan (Live)
+# ============================================================
+
+def scan_symbol(symbol, live_price, state):
+    """ایک کوئن پر مکمل اسکین"""
+    if live_price is None or live_price <= 0:
+        return None
+
+    now_utc = pd.Timestamp.now(tz='UTC').tz_localize(None)
+    cooldown = state.get("cooldown", {})
+    if symbol in cooldown:
+        last = pd.Timestamp(cooldown[symbol])
+        if (now_utc - last).total_seconds() < COOLDOWN_HOURS * 3600:
+            return None
+
+    # 1D, 4H لوڈ کریں
+    daily = get_data(symbol, "1d", limit=10)
+    h4 = get_data(symbol, "4h", limit=30)
+
+    if daily.empty or len(daily) < 1:
+        return None
+    if h4.empty or len(h4) < H4_LOOKBACK:
+        return None
+
+    # 1D Sweep: کل والی کینڈل
+    prev_day = daily.iloc[-1]
+    prev_high = prev_day["high"]
+    prev_low = prev_day["low"]
+
+    # 4H Sweep: پچھلی 5 کینڈلز
+    h4_recent = h4.iloc[-H4_LOOKBACK:]
+    h4_high = h4_recent["high"].max()
+    h4_low = h4_recent["low"].min()
+
+    # --- Sweep Detection (Live Price) ---
+    daily_sweep = None
+    if live_price > prev_high * (1 + BUFFER):
+        daily_sweep = "HIGH"
+    elif live_price < prev_low * (1 - BUFFER):
+        daily_sweep = "LOW"
+
+    h4_sweep = None
+    if live_price > h4_high * (1 + BUFFER):
+        h4_sweep = "HIGH"
+    elif live_price < h4_low * (1 - BUFFER):
+        h4_sweep = "LOW"
+
+    if not daily_sweep and not h4_sweep:
+        return None
+
+    # سمت
+    if daily_sweep == "HIGH" or h4_sweep == "HIGH":
+        side = "SHORT"
+        sweep_extreme = max(prev_high, h4_high)
+    else:
+        side = "LONG"
+        sweep_extreme = min(prev_low, h4_low)
+
+    # 15m اور 30m پر انٹری کنفرمیشن
+    confirm_15 = False
+    confirm_30 = False
+
+    df15 = get_data(symbol, "15m", limit=100)
+    if not df15.empty:
+        df15 = add_rsi(df15)
+        for i in range(len(df15) - RECENT_CANDLES, len(df15)):
+            if i < 0:
+                continue
+            long_15, short_15 = check_entry_conditions(df15, i)
+            if side == "LONG" and long_15:
+                confirm_15 = True
+            if side == "SHORT" and short_15:
+                confirm_15 = True
+
+    df30 = get_data(symbol, "30m", limit=100)
+    if not df30.empty:
+        df30 = add_rsi(df30)
+        for i in range(len(df30) - RECENT_CANDLES, len(df30)):
+            if i < 0:
+                continue
+            long_30, short_30 = check_entry_conditions(df30, i)
+            if side == "LONG" and long_30:
+                confirm_30 = True
+            if side == "SHORT" and short_30:
+                confirm_30 = True
+
+    # کسی ایک TF پر کنفرمیشن کافی
+    if side == "LONG" and not (confirm_15 or confirm_30):
+        return None
+    if side == "SHORT" and not (confirm_15 or confirm_30):
+        return None
+
+    # --- Entry = Live Price ---
+    entry = live_price
+
+    # --- SL = Sweep Extreme ---
+    sl = sweep_extreme * ((1 - BUFFER) if side == "LONG" else (1 + BUFFER))
+    risk = (entry - sl) if side == "LONG" else (sl - entry)
+
+    if risk <= 0:
+        return None
+
+    risk_pct = (risk / entry) * 100
+    if risk_pct < MIN_RISK_PERCENT:
+        return None
+    if risk_pct > 5.0:  # SL بہت دور نہ ہو
+        return None
+
+    # --- 5 TPs ---
+    direction = 1 if side == "LONG" else -1
+    tps = {rr: entry + direction * risk * rr for rr in [1, 2, 3, 4, 5]}
+
+    # Cooldown اپ ڈیٹ
+    cooldown[symbol] = now_utc.isoformat()
+    state["cooldown"] = cooldown
+
+    return {
+        "symbol": symbol,
+        "side": side,
+        "entry": entry,
+        "sl": sl,
+        "tps": tps,
+        "risk_pct": round(risk_pct, 3),
+        "sweep_source": f"1D+4H" if (daily_sweep and h4_sweep) else ("1D" if daily_sweep else "4H")
+    }
 
 
 # ============================================================
@@ -519,11 +526,15 @@ def send_ntfy(signal):
         resp = requests.post(
             NTFY_URL,
             data=message.encode("utf-8"),
-            headers={"Title": title, "Priority": "high", "Tags": "rotating_light"},
+            headers={
+                "Title": title,
+                "Priority": "high",
+                "Tags": "rotating_light",
+            },
             timeout=10,
         )
         resp.raise_for_status()
-        print(f"  -> SENT: {symbol} {side} | Entry: {entry:.6f}")
+        print(f"  -> NTFY Sent: {symbol} {side} | Entry: {entry:.6f} | Risk: {signal['risk_pct']}%")
         time.sleep(2)
         return True
     except Exception as e:
@@ -544,7 +555,7 @@ def run_scan_cycle(symbols, state):
 
     for idx, symbol in enumerate(symbols):
         if new_count >= MAX_SIGNALS_PER_SCAN:
-            print(f"\nMax signals ({MAX_SIGNALS_PER_SCAN}) reached.")
+            print(f"\nMax signals ({MAX_SIGNALS_PER_SCAN}) reached. Stopping.")
             break
 
         print(f"[{idx+1}/{len(symbols)}] {symbol}", end="\r")
@@ -553,28 +564,13 @@ def run_scan_cycle(symbols, state):
         if live_price is None:
             continue
 
-        daily = get_data(symbol, "1d", limit=10)
-        if daily.empty:
+        try:
+            signal = scan_symbol(symbol, live_price, state)
+            if signal:
+                if send_ntfy(signal):
+                    new_count += 1
+        except Exception as e:
             continue
-
-        h4 = get_data(symbol, "4h", limit=30)
-        if h4.empty:
-            continue
-
-        # فوری فلٹر
-        prev_high, prev_low = get_previous_day_levels(daily)
-        h4_high, h4_low = get_h4_sweep_levels(h4)
-        daily_sweep = check_daily_sweep(live_price, prev_high, prev_low)
-        h4_sweep = check_h4_sweep(live_price, h4_high, h4_low)
-
-        if not daily_sweep and not h4_sweep:
-            continue
-
-        # مکمل چیک (دونوں ٹائم فریمز)
-        signal = scan_symbol(symbol, live_price, daily, h4, state)
-        if signal:
-            if send_ntfy(signal):
-                new_count += 1
 
     print(" " * 80, end="\r")
     return new_count
@@ -585,15 +581,16 @@ def run_scan_cycle(symbols, state):
 # ============================================================
 
 def main():
-    print("=" * 65)
-    print("RSI DIVERGENCE + ENGULFING + CLIMAX SCANNER (Top 200)")
+    print("=" * 70)
+    print("LIVE SIGNAL SCANNER - Rejection + Div/OS/OB/Climax + Sweep")
+    print(f"Symbols: Top {MAX_SYMBOLS} | Entry TFs: {ENTRY_TIMEFRAMES}")
     print(f"RSI: {RSI_PERIOD} | OB: {RSI_OVERBOUGHT} | OS: {RSI_OVERSOLD}")
-    print(f"Symbols: Top {MAX_SYMBOLS}")
-    print(f"Entry TFs: {ENTRY_TIMEFRAMES} (both must confirm)")
-    print(f"NTFY: [HIDDEN - from GitHub Secret]")
-    print("=" * 65)
+    print(f"Rejection Wick: {REJECTION_WICK_RATIO}x | Body Max: {REJECTION_BODY_MAX*100}%")
+    print(f"Max Signals/Scan: {MAX_SIGNALS_PER_SCAN}")
+    print(f"NTFY Topic: [HIDDEN - from GitHub Secret]")
+    print("=" * 70)
 
-    symbols = get_top_200_symbols()
+    symbols = get_top_500_symbols()
     if not symbols:
         print("No symbols. Exiting.")
         sys.exit(1)
@@ -617,7 +614,7 @@ def main():
             next_scan += pd.Timedelta(minutes=SCAN_INTERVAL_MINUTES)
             sleep_seconds = (next_scan - now).total_seconds()
 
-        print(f"Next scan at {next_scan.strftime('%H:%M')} UTC")
+        print(f"Next scan at {next_scan.strftime('%H:%M')} UTC (sleeping {sleep_seconds/60:.1f} min)")
         time.sleep(sleep_seconds)
 
 
