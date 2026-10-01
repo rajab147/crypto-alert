@@ -37,7 +37,7 @@ ENTRY_TIMEFRAMES = ["15m", "30m"]   # دونوں لازمی
 MAX_ENTRY_DRIFT_PERCENT = 1.0
 
 # --- Symbols ---
-MAX_SYMBOLS = 200                    # صرف Top 100
+MAX_SYMBOLS = 200                    # صرف Top 200
 
 # --- Global ---
 MAX_SIGNALS_PER_SCAN = 5
