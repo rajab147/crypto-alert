@@ -4,41 +4,41 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
 
 # ============================================================
-# ⚙️ سیٹنگز
+# ⚙️ حتمی سیٹنگز (بہترین بیک ٹیسٹ سے)
 # ============================================================
 TIMEFRAME = "1h"
-HISTORY_HOURS = 12
+HISTORY_HOURS = 24
 
-BUY_THRESHOLD = 25
-SELL_THRESHOLD = 75
+# Thresholds
+BUY_THRESHOLD = 30
+SELL_THRESHOLD = 70
 MIN_SIGNALS = 4
 
-# صرف یہ کوئنز چھوڑ دیں (سٹیبل کوائنز)
+# POC Thresholds (یہ سب سے اہم ہے!)
+POC_MIN = 0.65     # Buy Signal کے لیے
+POC_MAX = 0.30     # Sell Signal کے لیے
+
+# Ratio Thresholds
+RATIO_MIN = 1.0
+RATIO_MAX = 1.0
+
+# والیوم فلٹر
+MIN_VOLUME_USDT = 5_000_000   # 5 ملین
+MAX_SYMBOLS = 300
+THREADS = 10
+
 SKIP_SYMBOLS = [
     "USDCUSDT", "BUSDUSDT", "TUSDUSDT", "USDPUSDT", "FDUSDUSDT",
     "DAIUSDT", "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY",
 ]
-
-# کم از کم 24 گھنٹے کا والیوم (USDT) — کم والیوم والے کوئنز چھوڑ دیں
-MIN_VOLUME_USDT = 5_000_000  # 5 ملین USDT
-
-# زیادہ سے زیادہ کوئنز (اگر 400 سے زیادہ ہوں تو صرف ٹاپ 400)
-MAX_SYMBOLS = 400
-
-# ایک ساتھ کتنے کوئنز اسکین کریں
-THREADS = 10
 
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
     print("❌ NFTY_URL set نہیں ہے")
     exit(1)
 
-# ============================================================
-# 🌐 Binance Endpoints
-# ============================================================
 BINANCE_ENDPOINTS = [
     "https://data-api.binance.vision",
     "https://api.binance.com",
@@ -46,6 +46,7 @@ BINANCE_ENDPOINTS = [
     "https://api2.binance.com",
     "https://api3.binance.com",
 ]
+
 
 def get_working_endpoint():
     for url in BINANCE_ENDPOINTS:
@@ -58,124 +59,69 @@ def get_working_endpoint():
     return None
 
 
-# ============================================================
-# 📋 تمام USDT کوئنز حاصل کریں
-# ============================================================
 def get_all_symbols(base_url):
-    print("📋 تمام USDT کوئنز حاصل کیے جا رہے ہیں...")
-    
+    print("📋 USDT کوئنز...")
     try:
         r = requests.get(f"{base_url}/api/v3/exchangeInfo", timeout=30)
         data = r.json()
-        
         if 'symbols' not in data:
-            print("❌ exchangeInfo ناکام")
             return []
-        
         symbols = []
         for s in data['symbols']:
-            # صرف USDT جوڑے
-            if s['quoteAsset'] != 'USDT':
+            if s['quoteAsset'] != 'USDT' or s['status'] != 'TRADING':
                 continue
-            # صرف ٹریڈنگ والے
-            if s['status'] != 'TRADING':
-                continue
-            # سٹیبل کوائنز چھوڑ دیں
             if s['symbol'] in SKIP_SYMBOLS:
                 continue
-            # لیوریج ٹوکن چھوڑ دیں
             if 'UP' in s['baseAsset'] or 'DOWN' in s['baseAsset']:
                 continue
             if 'BULL' in s['baseAsset'] or 'BEAR' in s['baseAsset']:
                 continue
-            
             symbols.append(s['symbol'])
-        
-        print(f"✅ {len(symbols)} USDT کوئنز ملیں")
         return symbols
-    
-    except Exception as e:
-        print(f"❌ {e}")
+    except:
         return []
 
 
-# ============================================================
-# 📊 24 گھنٹے کا والیوم (فلٹر کے لیے)
-# ============================================================
-def get_top_volume_symbols(base_url, symbols, top_n=MAX_SYMBOLS):
-    print(f"📊 ٹاپ {top_n} کوئنز والیوم کے لحاظ سے...")
-    
+def get_top_symbols(base_url, symbols):
     try:
         r = requests.get(f"{base_url}/api/v3/ticker/24hr", timeout=30)
         data = r.json()
-        
         if not isinstance(data, list):
-            return symbols[:top_n]
+            return symbols[:MAX_SYMBOLS]
         
-        # صرف ان کوئنز کا ڈیٹا
         symbol_set = set(symbols)
         volumes = []
-        
-        for ticker in data:
-            sym = ticker.get('symbol')
+        for t in data:
+            sym = t.get('symbol')
             if sym not in symbol_set:
                 continue
             try:
-                vol = float(ticker.get('quoteVolume', 0))
-                volumes.append((sym, vol))
+                vol = float(t.get('quoteVolume', 0))
+                if vol >= MIN_VOLUME_USDT:
+                    volumes.append((sym, vol))
             except:
                 continue
         
-        # والیوم کے لحاظ سے ترتیب دیں
         volumes.sort(key=lambda x: x[1], reverse=True)
-        
-        # صرف وہ جو کم از کم والیوم رکھتے ہوں
-        filtered = [s for s, v in volumes if v >= MIN_VOLUME_USDT]
-        
-        print(f"✅ {len(filtered)} کوئنز (≥ ${MIN_VOLUME_USDT:,} والیوم)")
-        
-        return filtered[:top_n]
-    
-    except Exception as e:
-        print(f"⚠️ {e}")
-        return symbols[:top_n]
+        return [s for s, v in volumes[:MAX_SYMBOLS]]
+    except:
+        return symbols[:MAX_SYMBOLS]
 
 
-# ============================================================
-# 📥 ایک کوئن کا ڈیٹا لوڈ
-# ============================================================
 def load_data(base_url, symbol):
     url = f"{base_url}/api/v3/klines"
-    params = {
-        "symbol": symbol,
-        "interval": TIMEFRAME,
-        "limit": HISTORY_HOURS
-    }
-    
+    params = {"symbol": symbol, "interval": TIMEFRAME, "limit": HISTORY_HOURS}
     try:
         r = requests.get(url, params=params, timeout=10)
         data = r.json()
-        
         if not isinstance(data, list) or len(data) < 4:
             return None
-        
         rows = []
         for k in data:
-            o = float(k[1])
-            c = float(k[4])
-            h = float(k[2])
-            l = float(k[3])
+            o = float(k[1]); c = float(k[4]); h = float(k[2]); l = float(k[3])
             vol = float(k[5])
-            
-            if c > o:
-                buy_pct = 0.6
-            elif c < o:
-                buy_pct = 0.4
-            else:
-                buy_pct = 0.5
-            
+            buy_pct = 0.6 if c > o else 0.4 if c < o else 0.5
             delta_est = int((buy_pct - 0.5) * vol * 100000)
-            
             rows.append({
                 'start_time': datetime.fromtimestamp(k[0] / 1000),
                 'open': o, 'high': h, 'low': l, 'close': c,
@@ -185,17 +131,12 @@ def load_data(base_url, symbol):
                 'poc': (h + l) / 2,
                 'delta': delta_est,
             })
-        
         return pd.DataFrame(rows)
-    
     except:
         return None
 
 
-# ============================================================
-# 🎯 تجزیہ
-# ============================================================
-def analyze_symbol(df, symbol):
+def analyze(df, symbol):
     if df is None or len(df) < 4:
         return None
     
@@ -203,8 +144,9 @@ def analyze_symbol(df, symbol):
     df['poc_position'] = (df['poc'] - df['low']) / (df['high'] - df['low']).replace(0, 0.0001)
     df['ratio'] = df['ask_volume'] / df['bid_volume'].replace(0, 1)
     
-    df['bull_of'] = (df['delta'] > 0) & (df['poc_position'] > 0.6) & (df['ratio'] > 1.0)
-    df['bear_of'] = (df['delta'] < 0) & (df['poc_position'] < 0.4) & (df['ratio'] < 1.0)
+    # POC اور Ratio کے ساتھ سخت شرائط
+    df['bull_of'] = (df['delta'] > 0) & (df['poc_position'] > POC_MIN) & (df['ratio'] > RATIO_MIN)
+    df['bear_of'] = (df['delta'] < 0) & (df['poc_position'] < POC_MAX) & (df['ratio'] < RATIO_MAX)
     
     df['window'] = df['start_time'].dt.floor('12h')
     
@@ -226,10 +168,10 @@ def analyze_symbol(df, symbol):
     bull_pct = (latest['bull_count'] / total) * 100
     
     signal = None
-    if bull_pct >= SELL_THRESHOLD:
-        signal = 'SELL'
-    elif bull_pct <= BUY_THRESHOLD:
+    if bull_pct <= BUY_THRESHOLD:
         signal = 'BUY'
+    elif bull_pct >= SELL_THRESHOLD:
+        signal = 'SELL'
     
     if signal is None:
         return None
@@ -246,130 +188,91 @@ def analyze_symbol(df, symbol):
     }
 
 
-# ============================================================
-# 🔄 ایک کوئن کو اسکین کریں
-# ============================================================
-def scan_one(base_url, symbol):
+def scan(base_url, symbol):
     df = load_data(base_url, symbol)
-    return analyze_symbol(df, symbol)
+    return analyze(df, symbol)
 
 
-# ============================================================
-# 📲 Nfty (متعدد سگنلز ایک پیغام میں)
-# ============================================================
-def send_nfty_bulk(signals):
+def send_nfty(signals):
     if not signals:
         return
-    
-    # BUY اور SELL الگ کریں
     buys = [s for s in signals if s['signal'] == 'BUY']
     sells = [s for s in signals if s['signal'] == 'SELL']
     
-    # پیغام بنائیں
-    lines = []
+    lines = [f"🎯 {len(signals)} سگنلز ({len(buys)}B/{len(sells)}S)\n"]
     
     if buys:
         lines.append(f"🟢 BUY ({len(buys)}):")
-        for s in buys[:20]:  # زیادہ سے زیادہ 20 دکھائیں
+        for s in buys[:15]:
             sym = s['symbol'].replace("USDT", "")
-            lines.append(f"  {sym} | ${s['price']:,.2f} | Bull%: {s['bull_pct']:.0f}%")
-        if len(buys) > 20:
-            lines.append(f"  ... +{len(buys) - 20} مزید")
+            lines.append(f"  {sym} | ${s['price']:,.4f} | {s['bull_pct']:.0f}%")
+        if len(buys) > 15:
+            lines.append(f"  +{len(buys)-15} مزید")
     
     if sells:
         lines.append(f"\n🔴 SELL ({len(sells)}):")
-        for s in sells[:20]:
+        for s in sells[:15]:
             sym = s['symbol'].replace("USDT", "")
-            lines.append(f"  {sym} | ${s['price']:,.2f} | Bull%: {s['bull_pct']:.0f}%")
-        if len(sells) > 20:
-            lines.append(f"  ... +{len(sells) - 20} مزید")
+            lines.append(f"  {sym} | ${s['price']:,.4f} | {s['bull_pct']:.0f}%")
+        if len(sells) > 15:
+            lines.append(f"  +{len(sells)-15} مزید")
     
     message = "\n".join(lines)
-    title = f"🎯 {len(signals)} سگنلز ({len(buys)}B/{len(sells)}S)"
+    title = f"🎯 {len(signals)} سگنلز"
     
     try:
         r = requests.post(
             NFTY_URL,
             data=message.encode('utf-8'),
-            headers={
-                "Title": title,
-                "Priority": "high",
-                "Tags": "rotating_light,moneybag",
-            },
+            headers={"Title": title, "Priority": "high", "Tags": "rotating_light,moneybag"},
             timeout=15
         )
         if r.status_code == 200:
-            print(f"✅ Nfty بھیجا: {title}")
+            print(f"✅ Nfty: {title}")
     except Exception as e:
         print(f"❌ Nfty: {e}")
 
 
-# ============================================================
-# 🎬 MAIN
-# ============================================================
 def main():
-    start_time = datetime.now()
+    start = datetime.now()
     print("=" * 70)
-    print(f"🚀 {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"🚀 {start.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"⚙️ POC: {POC_MIN}-{POC_MAX} | Buy≤{BUY_THRESHOLD}% Sell≥{SELL_THRESHOLD}%")
     print("=" * 70)
     
     base_url = get_working_endpoint()
     if not base_url:
-        print("❌ کوئی endpoint کام نہیں کر رہا")
         return
+    print(f"✅ {base_url}\n")
     
-    print(f"✅ Endpoint: {base_url}\n")
+    all_sym = get_all_symbols(base_url)
+    symbols = get_top_symbols(base_url, all_sym)
+    print(f"🔍 {len(symbols)} کوئنز اسکین...\n")
     
-    # 1. تمام کوئنز
-    all_symbols = get_all_symbols(base_url)
-    if not all_symbols:
-        return
-    
-    # 2. والیوم کے لحاظ سے فلٹر
-    symbols = get_top_volume_symbols(base_url, all_symbols)
-    if not symbols:
-        print("❌ کوئی کوئن نہیں ملی")
-        return
-    
-    print(f"\n🔍 {len(symbols)} کوئنز اسکین ہو رہی ہیں...\n")
-    
-    # 3. متعدد threads میں اسکین کریں
     signals = []
     completed = 0
     
-    with ThreadPoolExecutor(max_workers=THREADS) as executor:
-        futures = {
-            executor.submit(scan_one, base_url, sym): sym 
-            for sym in symbols
-        }
-        
-        for future in as_completed(futures):
-            sym = futures[future]
+    with ThreadPoolExecutor(max_workers=THREADS) as ex:
+        futures = {ex.submit(scan, base_url, s): s for s in symbols}
+        for f in as_completed(futures):
             completed += 1
-            
             if completed % 50 == 0:
-                print(f"   ⏳ {completed}/{len(symbols)} مکمل")
-            
+                print(f"   ⏳ {completed}/{len(symbols)}")
             try:
-                result = future.result(timeout=30)
-                if result:
-                    signals.append(result)
-                    print(f"   🎯 {result['symbol']}: {result['signal']} "
-                          f"(Bull% {result['bull_pct']:.0f}%)")
+                r = f.result(timeout=30)
+                if r:
+                    signals.append(r)
+                    print(f"   🎯 {r['symbol']}: {r['signal']} ({r['bull_pct']:.0f}%)")
             except:
                 continue
     
-    elapsed = (datetime.now() - start_time).total_seconds()
-    
-    print("\n" + "=" * 70)
-    print(f"📊 مکمل: {completed} کوئنز | {len(signals)} سگنلز | {elapsed:.0f} سیکنڈ")
+    elapsed = (datetime.now() - start).total_seconds()
+    print(f"\n{'='*70}")
+    print(f"📊 {completed} کوئنز | {len(signals)} سگنلز | {elapsed:.0f}s")
     print("=" * 70)
     
-    # 4. Nfty پر بھیجیں
     if signals:
-        send_nfty_bulk(signals)
-    else:
-        print("⏳ کوئی سگنل نہیں ملا")
+        send_nfty(signals)
 
 
 if __name__ == "__main__":
