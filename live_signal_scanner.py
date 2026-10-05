@@ -6,27 +6,23 @@ from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ============================================================
-# ⚙️ حتمی سیٹنگز (بہترین بیک ٹیسٹ سے)
+# ⚙️ سیٹنگز
 # ============================================================
 TIMEFRAME = "1h"
-HISTORY_HOURS = 24
+HISTORY_HOURS = 72
 
-# Thresholds
 BUY_THRESHOLD = 30
 SELL_THRESHOLD = 70
 MIN_SIGNALS = 4
 
-# POC Thresholds (یہ سب سے اہم ہے!)
-POC_MIN = 0.65     # Buy Signal کے لیے
-POC_MAX = 0.30     # Sell Signal کے لیے
+POC_MIN = 0.65
+POC_MAX = 0.30
 
-# Ratio Thresholds
 RATIO_MIN = 1.0
 RATIO_MAX = 1.0
 
-# والیوم فلٹر
-MIN_VOLUME_USDT = 5_000_000   # 5 ملین
-MAX_SYMBOLS = 300
+MIN_VOLUME_USDT = 2_000_000
+MAX_SYMBOLS = 500
 THREADS = 10
 
 SKIP_SYMBOLS = [
@@ -103,6 +99,7 @@ def get_top_symbols(base_url, symbols):
                 continue
         
         volumes.sort(key=lambda x: x[1], reverse=True)
+        print(f"✅ {len(volumes)} کوئنز (≥ ${MIN_VOLUME_USDT:,})")
         return [s for s, v in volumes[:MAX_SYMBOLS]]
     except:
         return symbols[:MAX_SYMBOLS]
@@ -144,7 +141,6 @@ def analyze(df, symbol):
     df['poc_position'] = (df['poc'] - df['low']) / (df['high'] - df['low']).replace(0, 0.0001)
     df['ratio'] = df['ask_volume'] / df['bid_volume'].replace(0, 1)
     
-    # POC اور Ratio کے ساتھ سخت شرائط
     df['bull_of'] = (df['delta'] > 0) & (df['poc_position'] > POC_MIN) & (df['ratio'] > RATIO_MIN)
     df['bear_of'] = (df['delta'] < 0) & (df['poc_position'] < POC_MAX) & (df['ratio'] < RATIO_MAX)
     
@@ -159,33 +155,35 @@ def analyze(df, symbol):
     if len(windows) < 1:
         return None
     
-    latest = windows.iloc[-1]
-    total = latest['bull_count'] + latest['bear_count']
+    # ہر ونڈو چیک کریں (نہ صرف آخری)
+    for _, w in windows.iterrows():
+        total = w['bull_count'] + w['bear_count']
+        if total < MIN_SIGNALS:
+            continue
+        
+        bull_pct = (w['bull_count'] / total) * 100
+        
+        signal = None
+        if bull_pct <= BUY_THRESHOLD:
+            signal = 'BUY'
+        elif bull_pct >= SELL_THRESHOLD:
+            signal = 'SELL'
+        
+        if signal is None:
+            continue
+        
+        return {
+            'symbol': symbol,
+            'window': w['window'],
+            'bull_count': int(w['bull_count']),
+            'bear_count': int(w['bear_count']),
+            'total': int(total),
+            'bull_pct': bull_pct,
+            'signal': signal,
+            'price': w['close_price'],
+        }
     
-    if total < MIN_SIGNALS:
-        return None
-    
-    bull_pct = (latest['bull_count'] / total) * 100
-    
-    signal = None
-    if bull_pct <= BUY_THRESHOLD:
-        signal = 'BUY'
-    elif bull_pct >= SELL_THRESHOLD:
-        signal = 'SELL'
-    
-    if signal is None:
-        return None
-    
-    return {
-        'symbol': symbol,
-        'window': latest['window'],
-        'bull_count': int(latest['bull_count']),
-        'bear_count': int(latest['bear_count']),
-        'total': int(total),
-        'bull_pct': bull_pct,
-        'signal': signal,
-        'price': latest['close_price'],
-    }
+    return None
 
 
 def scan(base_url, symbol):
@@ -237,7 +235,7 @@ def main():
     start = datetime.now()
     print("=" * 70)
     print(f"🚀 {start.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"⚙️ POC: {POC_MIN}-{POC_MAX} | Buy≤{BUY_THRESHOLD}% Sell≥{SELL_THRESHOLD}%")
+    print(f"⚙️ POC: {POC_MIN}-{POC_MAX} | B≤{BUY_THRESHOLD}% S≥{SELL_THRESHOLD}% | Min{MIN_SIGNALS}")
     print("=" * 70)
     
     base_url = get_working_endpoint()
@@ -256,7 +254,7 @@ def main():
         futures = {ex.submit(scan, base_url, s): s for s in symbols}
         for f in as_completed(futures):
             completed += 1
-            if completed % 50 == 0:
+            if completed % 100 == 0:
                 print(f"   ⏳ {completed}/{len(symbols)}")
             try:
                 r = f.result(timeout=30)
@@ -273,6 +271,8 @@ def main():
     
     if signals:
         send_nfty(signals)
+    else:
+        print("⏳ کوئی سگنل نہیں")
 
 
 if __name__ == "__main__":
