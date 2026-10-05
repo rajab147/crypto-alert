@@ -1,6 +1,4 @@
 name:live_signal_scanner.py
-
-on:
   schedule:
     - cron: '0,30 * * * *'
   workflow_dispatch:
