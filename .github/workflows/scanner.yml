@@ -2,29 +2,30 @@ name:live_signal_scanner.py
 
 on:
   schedule:
-    - cron: '0,30 * * * *'   # ہر 30 منٹ بعد چلے گا
-  workflow_dispatch:         # دستی طور پر چلانے کے لیے
+    - cron: '0,30 * * * *'
+  workflow_dispatch:
 
 jobs:
   scan_market:
     runs-on: ubuntu-latest
-    timeout-minutes: 10      # 10 منٹ سے زیادہ نہیں چلے گا
-    
+    timeout-minutes: 10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
+          pip install setuptools wheel
           pip install -r requirements.txt
-      
-      - name: Run Signal Scanner
+
+      - name: Run Scanner
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
-        run: python signal.py
+        run: python live_signal_scanner.py
