@@ -1,4 +1,4 @@
 pandas
 numpy
 requests
-footprint-analyzer
+https://github.com/endegenaassefa/footprint_analyzer/archive/refs/heads/main.zip
