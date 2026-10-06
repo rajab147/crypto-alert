@@ -7,25 +7,30 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
 
 # ============================================================
-# ⚙️ سیٹنگز (وہی جو بیک ٹیسٹ میں)
+# ⚙️ سیٹنگز (POC 0.65 — جو 91.7% WR دیا)
 # ============================================================
 TIMEFRAME = "1h"
 HISTORY_HOURS = 12
+WINDOW_SIZE = "12h"
 
 BUY_THRESHOLD = 30
 SELL_THRESHOLD = 70
 MIN_SIGNALS = 4
 
-POC_MIN = 0.65
-POC_MAX = 0.30
+POC_MIN = 0.65          # ← 91.7% WR والا
+POC_MAX = 0.30          # ← 91.7% WR والا
 
-# Klines فلٹر (پہلا مرحلہ - تیز)
-KLINES_THRESHOLD_BUFFER = 15   # th 30/70 سے 15% نرم (تاکہ کوئی چھوٹ نہ جائے)
+TARGET_PCT = 0.7        # Take Profit
+STOP_PCT = 0.5          # Stop Loss
 
-# والیوم فلٹر
-MIN_VOLUME_USDT = 5_000_000
-MAX_SYMBOLS = 300
-THREADS = 15                    # Klines تیز ہیں، زیادہ threads
+# 400 کوئنز — کوئی والیوم فلٹر نہیں
+MAX_SYMBOLS = 400
+KLINES_THRESHOLD_BUFFER = 20
+THREADS_KLINES = 20     # Klines کے لیے
+THREADS_AGG = 5         # aggTrades کے لیے (سست، کم threads)
+
+# aggTrades کی حد (bug fix)
+MAX_CHUNKS = 600        # ← 15 سے 600 (12 گھنٹے کے لیے کافی)
 
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
@@ -50,8 +55,10 @@ def get_working_endpoint():
     return None
 
 
+# ============================================================
+# 📋 400 کوئنز حاصل کریں
+# ============================================================
 def get_top_symbols(base_url):
-    """والیوم کے لحاظ سے 300 کوئنز"""
     print("📋 USDT کوئنز...")
     try:
         r = requests.get(f"{base_url}/api/v3/ticker/24hr", timeout=30)
@@ -60,7 +67,7 @@ def get_top_symbols(base_url):
             return []
         
         skip = ["USDCUSDT", "BUSDUSDT", "TUSDUSDT", "FDUSDUSDT", "DAIUSDT",
-                "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY"]
+                "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY", "USDTBIDR"]
         
         volumes = []
         for t in data:
@@ -71,14 +78,13 @@ def get_top_symbols(base_url):
                 continue
             try:
                 vol = float(t.get('quoteVolume', 0))
-                if vol >= MIN_VOLUME_USDT:
-                    volumes.append((sym, vol))
+                volumes.append((sym, vol))
             except:
                 continue
         
         volumes.sort(key=lambda x: x[1], reverse=True)
         result = [s for s, v in volumes[:MAX_SYMBOLS]]
-        print(f"✅ {len(result)} کوئنز (≥ ${MIN_VOLUME_USDT/1e6:.0f}M)")
+        print(f"✅ {len(result)} کوئنز")
         return result
     except Exception as e:
         print(f"❌ {e}")
@@ -86,10 +92,9 @@ def get_top_symbols(base_url):
 
 
 # ============================================================
-# مرحلہ 1: Klines سے تیز اسکین (فلٹر)
+# ⚡ مرحلہ 1: Klines سے تیز فلٹر (20 threads)
 # ============================================================
 def quick_scan_klines(base_url, symbol):
-    """Klines سے تیز فلٹر (صرف یہ دیکھیں کہ کوئی ونڈو 30/70 کے قریب ہے یا نہیں)"""
     url = f"{base_url}/api/v3/klines"
     params = {"symbol": symbol, "interval": TIMEFRAME, "limit": HISTORY_HOURS}
     
@@ -103,16 +108,8 @@ def quick_scan_klines(base_url, symbol):
         for k in data:
             o = float(k[1]); c = float(k[4]); h = float(k[2]); l = float(k[3])
             vol = float(k[5])
-            
-            # تخمینہ
-            if c > o: buy_pct = 0.65
-            elif c < o: buy_pct = 0.35
-            else: buy_pct = 0.5
-            
+            buy_pct = 0.65 if c > o else 0.35 if c < o else 0.5
             delta_est = int((buy_pct - 0.5) * vol * 100000)
-            
-            # POC کا تخمینہ (Klines سے ممکن نہیں، مگر حد لگائیں)
-            # یہ صرف پہلا فلٹر ہے
             rows.append({
                 'start_time': datetime.fromtimestamp(k[0] / 1000),
                 'open': o, 'high': h, 'low': l, 'close': c,
@@ -124,66 +121,94 @@ def quick_scan_klines(base_url, symbol):
         
         df = pd.DataFrame(rows)
         df['ratio'] = df['ask_volume'] / df['bid_volume'].replace(0, 1)
-        
-        # Klines میں POC نہیں، صرف Delta + Ratio دیکھیں (نرم فلٹر)
         df['bull_of'] = (df['delta'] > 0) & (df['ratio'] > 1.0)
         df['bear_of'] = (df['delta'] < 0) & (df['ratio'] < 1.0)
-        
-        df['window'] = df['start_time'].dt.floor('12h')
+        df['window'] = df['start_time'].dt.floor(WINDOW_SIZE)
         
         windows = df.groupby('window').agg(
             bull_count=('bull_of', 'sum'),
             bear_count=('bear_of', 'sum'),
-            close_price=('close', 'last'),
         ).reset_index()
+        windows['total'] = windows['bull_count'] + windows['bear_count']
+        windows['bull_pct'] = windows['bull_count'] / windows['total'] * 100
         
-        # ہر ونڈو چیک کریں
         for _, w in windows.iterrows():
-            total = w['bull_count'] + w['bear_count']
-            if total < MIN_SIGNALS:
+            if w['total'] < MIN_SIGNALS:
+                continue
+            bp = w['bull_pct']
+            if bp <= (BUY_THRESHOLD + KLINES_THRESHOLD_BUFFER) or \
+               bp >= (SELL_THRESHOLD - KLINES_THRESHOLD_BUFFER):
+                return {'symbol': symbol}
+        return None
+    except:
+        return None
+
+
+# ============================================================
+# 📥 مکمل aggTrades (chunked — bug fix)
+# ============================================================
+def load_full_aggtrades(base_url, symbol, hours=12):
+    """پورے گھنٹوں کا ڈیٹا — MAX_CHUNKS تک"""
+    end_time = int(datetime.now().timestamp() * 1000)
+    start_time = end_time - (hours * 60 * 60 * 1000)
+    
+    all_trades = []
+    current = start_time
+    chunks = 0
+    consecutive_empty = 0
+    
+    while current < end_time and chunks < MAX_CHUNKS:
+        url = f"{base_url}/api/v3/aggTrades"
+        params = {
+            "symbol": symbol,
+            "startTime": current,
+            "endTime": end_time,
+            "limit": 1000
+        }
+        try:
+            r = requests.get(url, params=params, timeout=15)
+            data = r.json()
+            
+            # کوئی ٹریڈ نہیں؟
+            if not data or (isinstance(data, list) and len(data) == 0):
+                consecutive_empty += 1
+                if consecutive_empty >= 3:
+                    break
+                current += 60000  # 1 منٹ آگے
                 continue
             
-            bull_pct = (w['bull_count'] / total) * 100
+            # Dict یعنی error
+            if isinstance(data, dict):
+                break
             
-            # نرم فلٹر — اگر 30/70 کے 15% قریب بھی ہے تو آگے بھیجیں
-            if bull_pct <= (BUY_THRESHOLD + KLINES_THRESHOLD_BUFFER) or \
-               bull_pct >= (SELL_THRESHOLD - KLINES_THRESHOLD_BUFFER):
-                return {
-                    'symbol': symbol,
-                    'klines_bull_pct': bull_pct,
-                    'klines_signal': 'BUY' if bull_pct <= BUY_THRESHOLD + KLINES_THRESHOLD_BUFFER else 'SELL',
-                }
-        
-        return None
-    except:
-        return None
+            consecutive_empty = 0
+            
+            # 1000 ٹریڈز ملیں — آخری کا ٹائم لیں
+            all_trades.extend(data)
+            
+            if len(data) < 1000:
+                # 1000 سے کم = آخری chunk
+                break
+            
+            current = data[-1]['T'] + 1
+            chunks += 1
+            
+        except Exception:
+            break
+    
+    return all_trades
 
 
 # ============================================================
-# مرحلہ 2: aggTrades سے اصل POC کی تصدیق
+# 🎯 مرحلہ 2: اصل POC (صرف فلٹر شدہ کوئنز پر)
 # ============================================================
 def verify_with_aggtrades(base_url, symbol):
-    """aggTrades سے اصل POC نکال کر تصدیق کریں"""
-    end_time = int(datetime.now().timestamp() * 1000)
-    start_time = end_time - (HISTORY_HOURS * 60 * 60 * 1000)
+    trades = load_full_aggtrades(base_url, symbol, HISTORY_HOURS)
     
-    url = f"{base_url}/api/v3/aggTrades"
-    params = {
-        "symbol": symbol,
-        "startTime": start_time,
-        "endTime": end_time,
-        "limit": 1000
-    }
-    
-    try:
-        r = requests.get(url, params=params, timeout=20)
-        trades = r.json()
-        if not isinstance(trades, list) or len(trades) < 500:
-            return None
-    except:
+    if not trades or len(trades) < 3000:
         return None
     
-    # footprint_analyzer سے اصل POC
+    # footprint_analyzer — اصل POC
     config = FootprintEngineConfig(
         tick_size=0.00001,
         aggregation_type=AggregationType.TIME,
@@ -225,10 +250,11 @@ def verify_with_aggtrades(base_url, symbol):
     df['poc_position'] = (df['poc'] - df['low']) / (df['high'] - df['low']).replace(0, 0.0001)
     df['ratio'] = df['ask_volume'] / df['bid_volume'].replace(0, 1)
     
+    # POC 0.65-0.30 والی شرائط
     df['bull_of'] = (df['delta'] > 0) & (df['poc_position'] > POC_MIN) & (df['ratio'] > 1.0)
     df['bear_of'] = (df['delta'] < 0) & (df['poc_position'] < POC_MAX) & (df['ratio'] < 1.0)
     
-    df['window'] = df['start_time'].dt.floor('12h')
+    df['window'] = df['start_time'].dt.floor(WINDOW_SIZE)
     
     windows = df.groupby('window').agg(
         bull_count=('bull_of', 'sum'),
@@ -259,14 +285,13 @@ def verify_with_aggtrades(base_url, symbol):
             'bull_pct': bull_pct,
             'signal': signal,
             'price': w['close_price'],
-            'poc_verified': True,
         }
     
     return None
 
 
 # ============================================================
-# 📲 Nfty
+# 📲 Nfty (TP اور SL کے ساتھ)
 # ============================================================
 def send_nfty(signals):
     if not signals:
@@ -275,34 +300,53 @@ def send_nfty(signals):
     buys = [s for s in signals if s['signal'] == 'BUY']
     sells = [s for s in signals if s['signal'] == 'SELL']
     
-    lines = [f"🎯 {len(signals)} سگنلز ({len(buys)}B/{len(sells)}S)\n"]
+    lines = [f"🎯 {len(signals)} سگنلز (1h)\n"]
     
     if buys:
         lines.append(f"🟢 BUY ({len(buys)}):")
-        for s in buys[:15]:
+        for s in buys[:12]:
             sym = s['symbol'].replace("USDT", "")
-            lines.append(f"  {sym} | ${s['price']:,.4f} | {s['bull_pct']:.0f}%")
-        if len(buys) > 15:
-            lines.append(f"  +{len(buys)-15} مزید")
+            entry = s['price']
+            tp = entry * (1 + TARGET_PCT/100)
+            sl = entry * (1 - STOP_PCT/100)
+            lines.append(f"━━━━━━━━━━━━━━━")
+            lines.append(f"  {sym} | Bull% {s['bull_pct']:.0f}%")
+            lines.append(f"  Entry: ${entry:,.4f}")
+            lines.append(f"  TP: ${tp:,.4f} (+{TARGET_PCT}%)")
+            lines.append(f"  SL: ${sl:,.4f} (-{STOP_PCT}%)")
+        if len(buys) > 12:
+            lines.append(f"  +{len(buys)-12} مزید")
     
     if sells:
         lines.append(f"\n🔴 SELL ({len(sells)}):")
-        for s in sells[:15]:
+        for s in sells[:12]:
             sym = s['symbol'].replace("USDT", "")
-            lines.append(f"  {sym} | ${s['price']:,.4f} | {s['bull_pct']:.0f}%")
-        if len(sells) > 15:
-            lines.append(f"  +{len(sells)-15} مزید")
+            entry = s['price']
+            tp = entry * (1 - TARGET_PCT/100)
+            sl = entry * (1 + STOP_PCT/100)
+            lines.append(f"━━━━━━━━━━━━━━━")
+            lines.append(f"  {sym} | Bull% {s['bull_pct']:.0f}%")
+            lines.append(f"  Entry: ${entry:,.4f}")
+            lines.append(f"  TP: ${tp:,.4f} (-{TARGET_PCT}%)")
+            lines.append(f"  SL: ${sl:,.4f} (+{STOP_PCT}%)")
+        if len(sells) > 12:
+            lines.append(f"  +{len(sells)-12} مزید")
     
     try:
         r = requests.post(
             NFTY_URL,
             data="\n".join(lines).encode('utf-8'),
-            headers={"Title": f"🎯 {len(signals)} سگنلز", "Priority": "high", "Tags": "rotating_light,moneybag"},
+            headers={
+                "Title": f"🎯 {len(signals)} سگنلز (1h)",
+                "Priority": "high",
+                "Tags": "rotating_light,moneybag",
+            },
             timeout=15
         )
-        print(f"✅ Nfty بھیجا")
-    except:
-        pass
+        if r.status_code == 200:
+            print(f"✅ Nfty بھیجا")
+    except Exception as e:
+        print(f"❌ Nfty: {e}")
 
 
 # ============================================================
@@ -311,29 +355,29 @@ def send_nfty(signals):
 def main():
     start = datetime.now()
     print("=" * 70)
-    print(f"🚀 {start.strftime('%H:%M:%S')}")
+    print(f"🚀 {start.strftime('%H:%M:%S')} | 1h ٹائم فریم")
     print(f"⚙️ POC {POC_MIN}-{POC_MAX} | B≤{BUY_THRESHOLD}% S≥{SELL_THRESHOLD}% | Min{MIN_SIGNALS}")
+    print(f"🎯 Target: {TARGET_PCT}% | Stop: {STOP_PCT}%")
     print("=" * 70)
     
     base_url = get_working_endpoint()
     if not base_url:
+        print("❌ کوئی endpoint کام نہیں کر رہا")
         return
     print(f"✅ {base_url}\n")
     
-    # مرحلہ 1: 300 کوئنز حاصل کریں
+    # مرحلہ 1: 400 کوئنز
     symbols = get_top_symbols(base_url)
     if not symbols:
         return
     
-    # ============================================================
-    # مرحلہ 1: Klines سے تیز فلٹر (300 کوئنز)
-    # ============================================================
-    print(f"\n🔍 مرحلہ 1: {len(symbols)} کوئنز Klines سے تیز فلٹر...")
+    # مرحلہ 2: Klines فلٹر (تیز)
+    print(f"\n🔍 مرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
     
     candidates = []
     completed = 0
     
-    with ThreadPoolExecutor(max_workers=THREADS) as ex:
+    with ThreadPoolExecutor(max_workers=THREADS_KLINES) as ex:
         futures = {ex.submit(quick_scan_klines, base_url, s): s for s in symbols}
         for f in as_completed(futures):
             completed += 1
@@ -347,26 +391,32 @@ def main():
                 continue
     
     elapsed1 = (datetime.now() - start).total_seconds()
-    print(f"✅ {len(candidates)} کوئنز فلٹر پاس | {elapsed1:.0f}s")
+    print(f"✅ {len(candidates)} کوئنز پاس | {elapsed1:.0f}s")
     
     if not candidates:
-        print("⏳ کوئی کوئن نہیں ملی")
+        print("⏳ کوئی کوئن نہیں ملا")
         return
     
-    # ============================================================
-    # مرحلہ 2: aggTrades سے اصل POC کی تصدیق
-    # ============================================================
-    print(f"\n🔍 مرحلہ 2: {len(candidates)} کوئنز aggTrades سے تصدیق...")
+    # مرحلہ 3: aggTrades (درست POC)
+    print(f"\n🔍 مرحلہ 2: {len(candidates)} کوئنز aggTrades تصدیق...")
     
     signals = []
-    for c in candidates:
-        try:
-            r = verify_with_aggtrades(base_url, c['symbol'])
-            if r:
-                signals.append(r)
-                print(f"   🎯 {r['symbol']}: {r['signal']} ({r['bull_pct']:.0f}%)")
-        except:
-            continue
+    completed = 0
+    
+    with ThreadPoolExecutor(max_workers=THREADS_AGG) as ex:
+        futures = {ex.submit(verify_with_aggtrades, base_url, c['symbol']): c['symbol'] 
+                   for c in candidates}
+        for f in as_completed(futures):
+            completed += 1
+            if completed % 5 == 0:
+                print(f"   ⏳ {completed}/{len(candidates)}")
+            try:
+                r = f.result(timeout=180)
+                if r:
+                    signals.append(r)
+                    print(f"   🎯 {r['symbol']}: {r['signal']} ({r['bull_pct']:.0f}%)")
+            except:
+                continue
     
     elapsed2 = (datetime.now() - start).total_seconds()
     print(f"\n{'='*70}")
@@ -375,6 +425,8 @@ def main():
     
     if signals:
         send_nfty(signals)
+    else:
+        print("⏳ کوئی سگنل نہیں — یہ معمول ہے، اگلی بار دیکھیں")
 
 
 if __name__ == "__main__":
