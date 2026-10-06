@@ -7,30 +7,29 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
 
 # ============================================================
-# ⚙️ سیٹنگز — صرف آرڈر فلو کے 5 رولز
+# ⚙️ سیٹنگز
 # ============================================================
 TIMEFRAME = "4h"
-HISTORY_CANDLES = 60        # 60 × 4h = 10 دن
+HISTORY_HOURS = 6          # ← صرف 6 گھنٹے (1.5 کینڈلز)
+HISTORY_CANDLES = 30       # Klines کے لیے
 
 # 5 رولز
-POC_BULL_MIN = 0.65         # رول 1: بلش کے لیے POC > 0.65
-POC_BEAR_MAX = 0.25         # رول 1: بیئرش کے لیے POC < 0.25 (Extreme)
-DELTA_MIN = 30_000_000      # رول 2: Delta > 30M
-RATIO_BULL_MIN = 1.1        # رول 3: Ask > Bid
-RATIO_BEAR_MAX = 0.9        # رول 3: Bid > Ask
-EMA_TREND = 20              # رول 4: رجحان
+POC_BULL_MIN = 0.65
+POC_BEAR_MAX = 0.25
+DELTA_MIN = 30_000_000
+RATIO_BULL_MIN = 1.1
+RATIO_BEAR_MAX = 0.9
+EMA_TREND = 20
 
-# TP/SL
 TARGET_PCT = 2.0
 STOP_PCT = 1.0
-MAX_HOLD = 6                # 6 × 4h = 24h
+MAX_HOLD = 6
 
-# کوئنز
-MIN_VOLUME_USDT = 10_000_000   # 10 ملین
+MIN_VOLUME_USDT = 10_000_000
 MAX_SYMBOLS = 200
-THREADS_KLINES = 20
-THREADS_AGG = 5
-MAX_CHUNKS = 120
+THREADS_KLINES = 30        # ← 30 threads (تیز)
+THREADS_AGG = 15           # ← 15 threads
+MAX_CHUNKS = 20            # ← 20 chunks (صرف 6 گھنٹے)
 
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
@@ -40,7 +39,6 @@ if not NFTY_URL:
 BINANCE_ENDPOINTS = [
     "https://data-api.binance.vision",
     "https://api.binance.com",
-    "https://api1.binance.com",
 ]
 
 
@@ -55,9 +53,6 @@ def get_working_endpoint():
     return None
 
 
-# ============================================================
-# 📋 200 کوئنز
-# ============================================================
 def get_top_symbols(base_url):
     print("📋 USDT کوئنز...")
     try:
@@ -67,7 +62,7 @@ def get_top_symbols(base_url):
             return []
         
         skip = ["USDCUSDT", "BUSDUSDT", "TUSDUSDT", "FDUSDUSDT", "DAIUSDT",
-                "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY", "USDTBIDR"]
+                "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY"]
         
         volumes = []
         for t in data:
@@ -93,66 +88,64 @@ def get_top_symbols(base_url):
 
 
 # ============================================================
-# ⚡ مرحلہ 1: Klines تیز فلٹر
+# ⚡ مرحلہ 1: Klines سے تیز فلٹر (تیز)
 # ============================================================
 def quick_scan(base_url, symbol):
-    """Klines سے تیز فلٹر — صرف Delta + Ratio"""
     url = f"{base_url}/api/v3/klines"
     params = {"symbol": symbol, "interval": TIMEFRAME, "limit": HISTORY_CANDLES}
     
     try:
-        r = requests.get(url, params=params, timeout=10)
+        r = requests.get(url, params=params, timeout=8)
         data = r.json()
-        if not isinstance(data, list) or len(data) < 10:
+        if not isinstance(data, list) or len(data) < 25:
             return None
         
-        # آخری 4 کینڈلز چیک کریں
-        for k in data[-4:]:
-            o = float(k[1]); c = float(k[4]); vol = float(k[5])
-            
-            if c > o:
-                buy_pct = 0.7
-            elif c < o:
-                buy_pct = 0.3
-            else:
-                continue
-            
-            delta_est = (buy_pct - 0.5) * vol * 1e6
-            ratio_est = buy_pct / (1 - buy_pct)
-            
-            # صرف ان کوئنز کو آگے بھیجیں جن میں کوئی بھی رول قریب ہو
-            if abs(delta_est) > DELTA_MIN * 0.5:
-                if ratio_est > RATIO_BULL_MIN or ratio_est < RATIO_BEAR_MAX:
-                    return {'symbol': symbol}
+        # آخری مکمل 4h کینڈل
+        k = data[-2]  # آخری مکمل
+        o = float(k[1]); c = float(k[4]); vol = float(k[5])
+        
+        if c > o:
+            buy_pct = 0.7
+        elif c < o:
+            buy_pct = 0.3
+        else:
+            return None
+        
+        delta_est = (buy_pct - 0.5) * vol * 1e6
+        ratio_est = buy_pct / (1 - buy_pct)
+        
+        # فلٹر: صرف وہ کوئنز جن میں Delta یا Ratio مضبوط ہو
+        if (abs(delta_est) > DELTA_MIN * 0.3 or 
+            ratio_est > 1.15 or ratio_est < 0.85):
+            return {'symbol': symbol, 'delta_est': delta_est}
         return None
     except:
         return None
 
 
 # ============================================================
-# 📥 aggTrades سے اصل POC
+# 📥 aggTrades — صرف 6 گھنٹے (تیز)
 # ============================================================
-def load_aggtrades(base_url, symbol, chunks_limit):
+def load_aggtrades(base_url, symbol):
     end_time = int(datetime.now().timestamp() * 1000)
-    # صرف آخری 40 گھنٹے (10 کینڈلز)
-    start_time = end_time - (40 * 60 * 60 * 1000)
+    start_time = end_time - (HISTORY_HOURS * 60 * 60 * 1000)
     
     all_trades = []
     current = start_time
     chunks = 0
     empty = 0
     
-    while current < end_time and chunks < chunks_limit:
+    while current < end_time and chunks < MAX_CHUNKS:
         url = f"{base_url}/api/v3/aggTrades"
         params = {"symbol": symbol, "startTime": current, "endTime": end_time, "limit": 1000}
         try:
-            r = requests.get(url, params=params, timeout=10)
+            r = requests.get(url, params=params, timeout=8)
             data = r.json()
             if not isinstance(data, list):
                 break
             if len(data) == 0:
                 empty += 1
-                if empty >= 3:
+                if empty >= 2:
                     break
                 current += 60000
                 continue
@@ -169,14 +162,13 @@ def load_aggtrades(base_url, symbol, chunks_limit):
 
 
 # ============================================================
-# 🎯 5 رولز کی جانچ
+# 🎯 5 رولز
 # ============================================================
 def analyze_symbol(base_url, symbol):
-    trades = load_aggtrades(base_url, symbol, MAX_CHUNKS)
-    if not trades or len(trades) < 2000:
+    trades = load_aggtrades(base_url, symbol)
+    if not trades or len(trades) < 500:
         return None
     
-    # footprint_analyzer سے 4h کینڈلز
     config = FootprintEngineConfig(
         tick_size=0.00001,
         aggregation_type=AggregationType.TIME,
@@ -197,41 +189,41 @@ def analyze_symbol(base_url, symbol):
             continue
     
     bars = engine.get_all_completed_bars()
-    if len(bars) < 5:
+    if len(bars) < 1:
         return None
     
-    # آخری مکمل کینڈل
     last = bars[-1]
     
     # میٹرکس
-    poc_position = (last.poc_price - last.low_price) / (last.high_price - last.low_price) if (last.high_price - last.low_price) > 0 else 0.5
+    rng = last.high_price - last.low_price
+    poc_position = (last.poc_price - last.low_price) / rng if rng > 0 else 0.5
     ratio = last.total_bar_ask_volume / last.total_bar_bid_volume if last.total_bar_bid_volume > 0 else 1.0
     delta = last.bar_delta
     
-    # رول 4: EMA20 (پچھلے 20 کینڈلز)
-    closes = [b.close_price for b in bars[-20:]]
-    ema20 = pd.Series(closes).ewm(span=20).mean().iloc[-1]
-    close_price = last.close_price
-    is_uptrend = close_price > ema20
+    # رول 4: EMA20 کے لیے Klines سے لیں
+    url = f"{base_url}/api/v3/klines"
+    params = {"symbol": symbol, "interval": TIMEFRAME, "limit": 25}
+    try:
+        r = requests.get(url, params=params, timeout=8)
+        klines = r.json()
+        closes = [float(k[4]) for k in klines]
+        ema20 = pd.Series(closes).ewm(span=20).mean().iloc[-1]
+        is_uptrend = last.close_price > ema20
+    except:
+        is_uptrend = True  # Default
     
-    # ============================================================
-    # 5 رولز کی جانچ
-    # ============================================================
-    
+    # 5 رولز
     signal = None
     
-    # 🟢 بلش کے لیے 5 رولز
-    if (poc_position > POC_BULL_MIN and           # رول 1
-        delta > DELTA_MIN and                      # رول 2
-        ratio > RATIO_BULL_MIN and                 # رول 3
-        is_uptrend):                               # رول 4 (رجحان کے ساتھ)
+    if (poc_position > POC_BULL_MIN and 
+        delta > DELTA_MIN and 
+        ratio > RATIO_BULL_MIN and 
+        is_uptrend):
         signal = 'BUY'
-    
-    # 🔴 بیئرش کے لیے 5 رولز
-    elif (poc_position < POC_BEAR_MAX and         # رول 1 (Extreme)
-          delta < -DELTA_MIN and                   # رول 2
-          ratio < RATIO_BEAR_MAX and               # رول 3
-          not is_uptrend):                         # رول 4 (رجحان کے ساتھ)
+    elif (poc_position < POC_BEAR_MAX and 
+          delta < -DELTA_MIN and 
+          ratio < RATIO_BEAR_MAX and 
+          not is_uptrend):
         signal = 'SELL'
     
     if signal is None:
@@ -240,18 +232,13 @@ def analyze_symbol(base_url, symbol):
     return {
         'symbol': symbol,
         'signal': signal,
-        'price': close_price,
-        'poc': last.poc_price,
+        'price': last.close_price,
         'poc_position': poc_position,
         'delta': delta,
         'ratio': ratio,
-        'is_uptrend': is_uptrend,
     }
 
 
-# ============================================================
-# 📲 Nfty نوٹیفکیشن
-# ============================================================
 def send_nfty(signals):
     if not signals:
         return
@@ -259,35 +246,27 @@ def send_nfty(signals):
     buys = [s for s in signals if s['signal'] == 'BUY']
     sells = [s for s in signals if s['signal'] == 'SELL']
     
-    lines = [f"🎯 {len(signals)} سگنلز (4h Order Flow)\n"]
+    lines = [f"🎯 {len(signals)} سگنلز (4h OF)\n"]
     
     if buys:
         lines.append(f"🟢 BUY ({len(buys)}):")
         for s in buys:
             sym = s['symbol'].replace("USDT", "")
             entry = s['price']
-            tp = entry * (1 + TARGET_PCT/100)
-            sl = entry * (1 - STOP_PCT/100)
             lines.append(f"━━━━━━━━━━━━━━━")
-            lines.append(f"{sym}")
-            lines.append(f"Entry: ${entry:,.4f}")
-            lines.append(f"TP: ${tp:,.4f} (+{TARGET_PCT}%)")
-            lines.append(f"SL: ${sl:,.4f} (-{STOP_PCT}%)")
-            lines.append(f"POC: {s['poc_position']:.2f} | Delta: +{s['delta']/1e6:.0f}M | Ratio: {s['ratio']:.2f}")
+            lines.append(f"{sym} | ${entry:,.4f}")
+            lines.append(f"TP: ${entry*(1+TARGET_PCT/100):,.4f} | SL: ${entry*(1-STOP_PCT/100):,.4f}")
+            lines.append(f"POC {s['poc_position']:.2f} | Δ+{s['delta']/1e6:.0f}M | R {s['ratio']:.2f}")
     
     if sells:
         lines.append(f"\n🔴 SELL ({len(sells)}):")
         for s in sells:
             sym = s['symbol'].replace("USDT", "")
             entry = s['price']
-            tp = entry * (1 - TARGET_PCT/100)
-            sl = entry * (1 + STOP_PCT/100)
             lines.append(f"━━━━━━━━━━━━━━━")
-            lines.append(f"{sym}")
-            lines.append(f"Entry: ${entry:,.4f}")
-            lines.append(f"TP: ${tp:,.4f} (-{TARGET_PCT}%)")
-            lines.append(f"SL: ${sl:,.4f} (+{STOP_PCT}%)")
-            lines.append(f"POC: {s['poc_position']:.2f} | Delta: {s['delta']/1e6:.0f}M | Ratio: {s['ratio']:.2f}")
+            lines.append(f"{sym} | ${entry:,.4f}")
+            lines.append(f"TP: ${entry*(1-TARGET_PCT/100):,.4f} | SL: ${entry*(1+STOP_PCT/100):,.4f}")
+            lines.append(f"POC {s['poc_position']:.2f} | Δ{s['delta']/1e6:.0f}M | R {s['ratio']:.2f}")
     
     try:
         r = requests.post(
@@ -306,16 +285,11 @@ def send_nfty(signals):
         print(f"❌ {e}")
 
 
-# ============================================================
-# 🎬 MAIN
-# ============================================================
 def main():
     start = datetime.now()
     print("=" * 70)
-    print(f"🚀 {start.strftime('%H:%M:%S')} | 4h Order Flow (5 Rules)")
-    print(f"📊 کوئنز: {MAX_SYMBOLS}")
-    print(f"⚙️ POC > {POC_BULL_MIN} | Delta > {DELTA_MIN/1e6:.0f}M | Ratio > {RATIO_BULL_MIN}")
-    print(f"🎯 TP: {TARGET_PCT}% | SL: {STOP_PCT}%")
+    print(f"🚀 {start.strftime('%H:%M:%S')} | 4h | صرف آخری 6 گھنٹے")
+    print(f"⚙️ POC>{POC_BULL_MIN} Δ>{DELTA_MIN/1e6:.0f}M R>{RATIO_BULL_MIN}")
     print("=" * 70)
     
     base_url = get_working_endpoint()
@@ -327,15 +301,19 @@ def main():
     if not symbols:
         return
     
-    # مرحلہ 1: تیز فلٹر
+    # مرحلہ 1
     print(f"🔍 مرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
     candidates = []
+    completed = 0
     
     with ThreadPoolExecutor(max_workers=THREADS_KLINES) as ex:
         futures = {ex.submit(quick_scan, base_url, s): s for s in symbols}
         for f in as_completed(futures):
+            completed += 1
+            if completed % 50 == 0:
+                print(f"   ⏳ {completed}/{len(symbols)}")
             try:
-                r = f.result(timeout=20)
+                r = f.result(timeout=15)
                 if r:
                     candidates.append(r)
             except:
@@ -347,20 +325,24 @@ def main():
         print("⏳ کوئی کوئن نہیں")
         return
     
-    # مرحلہ 2: اصل POC
+    # مرحلہ 2
     print(f"\n🔍 مرحلہ 2: {len(candidates)} کوئنز aggTrades...")
     signals = []
+    completed = 0
     
     with ThreadPoolExecutor(max_workers=THREADS_AGG) as ex:
         futures = {ex.submit(analyze_symbol, base_url, c['symbol']): c['symbol'] 
                    for c in candidates}
         for f in as_completed(futures):
+            completed += 1
+            if completed % 5 == 0:
+                print(f"   ⏳ {completed}/{len(candidates)}")
             try:
-                r = f.result(timeout=120)
+                r = f.result(timeout=30)
                 if r:
                     signals.append(r)
                     print(f"   🎯 {r['symbol']}: {r['signal']} "
-                          f"(POC {r['poc_position']:.2f}, Delta {r['delta']/1e6:+.0f}M)")
+                          f"(POC {r['poc_position']:.2f})")
             except:
                 continue
     
@@ -370,7 +352,7 @@ def main():
     if signals:
         send_nfty(signals)
     else:
-        print("⏳ کوئی سگنل نہیں (کوئی کوئن 5 رولز پر پورا نہیں اترا)")
+        print("⏳ کوئی سگنل نہیں")
 
 
 if __name__ == "__main__":
