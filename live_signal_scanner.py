@@ -7,30 +7,30 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
 
 # ============================================================
-# ⚙️ سیٹنگز (POC 0.65 — جو 91.7% WR دیا)
+# ⚙️ سیٹنگز — صرف آرڈر فلو کے 5 رولز
 # ============================================================
-TIMEFRAME = "1h"
-HISTORY_HOURS = 12
-WINDOW_SIZE = "12h"
+TIMEFRAME = "4h"
+HISTORY_CANDLES = 60        # 60 × 4h = 10 دن
 
-BUY_THRESHOLD = 30
-SELL_THRESHOLD = 70
-MIN_SIGNALS = 4
+# 5 رولز
+POC_BULL_MIN = 0.65         # رول 1: بلش کے لیے POC > 0.65
+POC_BEAR_MAX = 0.25         # رول 1: بیئرش کے لیے POC < 0.25 (Extreme)
+DELTA_MIN = 30_000_000      # رول 2: Delta > 30M
+RATIO_BULL_MIN = 1.1        # رول 3: Ask > Bid
+RATIO_BEAR_MAX = 0.9        # رول 3: Bid > Ask
+EMA_TREND = 20              # رول 4: رجحان
 
-POC_MIN = 0.65          # ← 91.7% WR والا
-POC_MAX = 0.30          # ← 91.7% WR والا
+# TP/SL
+TARGET_PCT = 2.0
+STOP_PCT = 1.0
+MAX_HOLD = 6                # 6 × 4h = 24h
 
-TARGET_PCT = 0.7        # Take Profit
-STOP_PCT = 0.5          # Stop Loss
-
-# 400 کوئنز — کوئی والیوم فلٹر نہیں
-MAX_SYMBOLS = 400
-KLINES_THRESHOLD_BUFFER = 20
-THREADS_KLINES = 20     # Klines کے لیے
-THREADS_AGG = 5         # aggTrades کے لیے (سست، کم threads)
-
-# aggTrades کی حد (bug fix)
-MAX_CHUNKS = 600        # ← 15 سے 600 (12 گھنٹے کے لیے کافی)
+# کوئنز
+MIN_VOLUME_USDT = 10_000_000   # 10 ملین
+MAX_SYMBOLS = 200
+THREADS_KLINES = 20
+THREADS_AGG = 5
+MAX_CHUNKS = 120
 
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
@@ -56,7 +56,7 @@ def get_working_endpoint():
 
 
 # ============================================================
-# 📋 400 کوئنز حاصل کریں
+# 📋 200 کوئنز
 # ============================================================
 def get_top_symbols(base_url):
     print("📋 USDT کوئنز...")
@@ -78,7 +78,8 @@ def get_top_symbols(base_url):
                 continue
             try:
                 vol = float(t.get('quoteVolume', 0))
-                volumes.append((sym, vol))
+                if vol >= MIN_VOLUME_USDT:
+                    volumes.append((sym, vol))
             except:
                 continue
         
@@ -92,127 +93,94 @@ def get_top_symbols(base_url):
 
 
 # ============================================================
-# ⚡ مرحلہ 1: Klines سے تیز فلٹر (20 threads)
+# ⚡ مرحلہ 1: Klines تیز فلٹر
 # ============================================================
-def quick_scan_klines(base_url, symbol):
+def quick_scan(base_url, symbol):
+    """Klines سے تیز فلٹر — صرف Delta + Ratio"""
     url = f"{base_url}/api/v3/klines"
-    params = {"symbol": symbol, "interval": TIMEFRAME, "limit": HISTORY_HOURS}
+    params = {"symbol": symbol, "interval": TIMEFRAME, "limit": HISTORY_CANDLES}
     
     try:
         r = requests.get(url, params=params, timeout=10)
         data = r.json()
-        if not isinstance(data, list) or len(data) < 4:
+        if not isinstance(data, list) or len(data) < 10:
             return None
         
-        rows = []
-        for k in data:
-            o = float(k[1]); c = float(k[4]); h = float(k[2]); l = float(k[3])
-            vol = float(k[5])
-            buy_pct = 0.65 if c > o else 0.35 if c < o else 0.5
-            delta_est = int((buy_pct - 0.5) * vol * 100000)
-            rows.append({
-                'start_time': datetime.fromtimestamp(k[0] / 1000),
-                'open': o, 'high': h, 'low': l, 'close': c,
-                'volume': int(vol * 100000),
-                'bid_volume': int(vol * 100000 * (1 - buy_pct)),
-                'ask_volume': int(vol * 100000 * buy_pct),
-                'delta': delta_est,
-            })
-        
-        df = pd.DataFrame(rows)
-        df['ratio'] = df['ask_volume'] / df['bid_volume'].replace(0, 1)
-        df['bull_of'] = (df['delta'] > 0) & (df['ratio'] > 1.0)
-        df['bear_of'] = (df['delta'] < 0) & (df['ratio'] < 1.0)
-        df['window'] = df['start_time'].dt.floor(WINDOW_SIZE)
-        
-        windows = df.groupby('window').agg(
-            bull_count=('bull_of', 'sum'),
-            bear_count=('bear_of', 'sum'),
-        ).reset_index()
-        windows['total'] = windows['bull_count'] + windows['bear_count']
-        windows['bull_pct'] = windows['bull_count'] / windows['total'] * 100
-        
-        for _, w in windows.iterrows():
-            if w['total'] < MIN_SIGNALS:
+        # آخری 4 کینڈلز چیک کریں
+        for k in data[-4:]:
+            o = float(k[1]); c = float(k[4]); vol = float(k[5])
+            
+            if c > o:
+                buy_pct = 0.7
+            elif c < o:
+                buy_pct = 0.3
+            else:
                 continue
-            bp = w['bull_pct']
-            if bp <= (BUY_THRESHOLD + KLINES_THRESHOLD_BUFFER) or \
-               bp >= (SELL_THRESHOLD - KLINES_THRESHOLD_BUFFER):
-                return {'symbol': symbol}
+            
+            delta_est = (buy_pct - 0.5) * vol * 1e6
+            ratio_est = buy_pct / (1 - buy_pct)
+            
+            # صرف ان کوئنز کو آگے بھیجیں جن میں کوئی بھی رول قریب ہو
+            if abs(delta_est) > DELTA_MIN * 0.5:
+                if ratio_est > RATIO_BULL_MIN or ratio_est < RATIO_BEAR_MAX:
+                    return {'symbol': symbol}
         return None
     except:
         return None
 
 
 # ============================================================
-# 📥 مکمل aggTrades (chunked — bug fix)
+# 📥 aggTrades سے اصل POC
 # ============================================================
-def load_full_aggtrades(base_url, symbol, hours=12):
-    """پورے گھنٹوں کا ڈیٹا — MAX_CHUNKS تک"""
+def load_aggtrades(base_url, symbol, chunks_limit):
     end_time = int(datetime.now().timestamp() * 1000)
-    start_time = end_time - (hours * 60 * 60 * 1000)
+    # صرف آخری 40 گھنٹے (10 کینڈلز)
+    start_time = end_time - (40 * 60 * 60 * 1000)
     
     all_trades = []
     current = start_time
     chunks = 0
-    consecutive_empty = 0
+    empty = 0
     
-    while current < end_time and chunks < MAX_CHUNKS:
+    while current < end_time and chunks < chunks_limit:
         url = f"{base_url}/api/v3/aggTrades"
-        params = {
-            "symbol": symbol,
-            "startTime": current,
-            "endTime": end_time,
-            "limit": 1000
-        }
+        params = {"symbol": symbol, "startTime": current, "endTime": end_time, "limit": 1000}
         try:
-            r = requests.get(url, params=params, timeout=15)
+            r = requests.get(url, params=params, timeout=10)
             data = r.json()
-            
-            # کوئی ٹریڈ نہیں؟
-            if not data or (isinstance(data, list) and len(data) == 0):
-                consecutive_empty += 1
-                if consecutive_empty >= 3:
+            if not isinstance(data, list):
+                break
+            if len(data) == 0:
+                empty += 1
+                if empty >= 3:
                     break
-                current += 60000  # 1 منٹ آگے
+                current += 60000
                 continue
-            
-            # Dict یعنی error
-            if isinstance(data, dict):
-                break
-            
-            consecutive_empty = 0
-            
-            # 1000 ٹریڈز ملیں — آخری کا ٹائم لیں
+            empty = 0
             all_trades.extend(data)
-            
             if len(data) < 1000:
-                # 1000 سے کم = آخری chunk
                 break
-            
             current = data[-1]['T'] + 1
             chunks += 1
-            
-        except Exception:
+        except:
             break
     
     return all_trades
 
 
 # ============================================================
-# 🎯 مرحلہ 2: اصل POC (صرف فلٹر شدہ کوئنز پر)
+# 🎯 5 رولز کی جانچ
 # ============================================================
-def verify_with_aggtrades(base_url, symbol):
-    trades = load_full_aggtrades(base_url, symbol, HISTORY_HOURS)
-    
-    if not trades or len(trades) < 3000:
+def analyze_symbol(base_url, symbol):
+    trades = load_aggtrades(base_url, symbol, MAX_CHUNKS)
+    if not trades or len(trades) < 2000:
         return None
     
-    # footprint_analyzer — اصل POC
+    # footprint_analyzer سے 4h کینڈلز
     config = FootprintEngineConfig(
         tick_size=0.00001,
         aggregation_type=AggregationType.TIME,
-        aggregation_value=TIMEFRAME,
+        aggregation_value="4h",
         value_area_percentage=0.7,
     )
     engine = FootprintEngine(config=config)
@@ -229,69 +197,60 @@ def verify_with_aggtrades(base_url, symbol):
             continue
     
     bars = engine.get_all_completed_bars()
-    if len(bars) < 4:
+    if len(bars) < 5:
         return None
     
-    data = []
-    for bar in bars:
-        data.append({
-            'start_time': bar.start_time,
-            'open': bar.open_price,
-            'high': bar.high_price,
-            'low': bar.low_price,
-            'close': bar.close_price,
-            'poc': bar.poc_price,
-            'delta': bar.bar_delta,
-            'bid_volume': bar.total_bar_bid_volume,
-            'ask_volume': bar.total_bar_ask_volume,
-        })
+    # آخری مکمل کینڈل
+    last = bars[-1]
     
-    df = pd.DataFrame(data)
-    df['poc_position'] = (df['poc'] - df['low']) / (df['high'] - df['low']).replace(0, 0.0001)
-    df['ratio'] = df['ask_volume'] / df['bid_volume'].replace(0, 1)
+    # میٹرکس
+    poc_position = (last.poc_price - last.low_price) / (last.high_price - last.low_price) if (last.high_price - last.low_price) > 0 else 0.5
+    ratio = last.total_bar_ask_volume / last.total_bar_bid_volume if last.total_bar_bid_volume > 0 else 1.0
+    delta = last.bar_delta
     
-    # POC 0.65-0.30 والی شرائط
-    df['bull_of'] = (df['delta'] > 0) & (df['poc_position'] > POC_MIN) & (df['ratio'] > 1.0)
-    df['bear_of'] = (df['delta'] < 0) & (df['poc_position'] < POC_MAX) & (df['ratio'] < 1.0)
+    # رول 4: EMA20 (پچھلے 20 کینڈلز)
+    closes = [b.close_price for b in bars[-20:]]
+    ema20 = pd.Series(closes).ewm(span=20).mean().iloc[-1]
+    close_price = last.close_price
+    is_uptrend = close_price > ema20
     
-    df['window'] = df['start_time'].dt.floor(WINDOW_SIZE)
+    # ============================================================
+    # 5 رولز کی جانچ
+    # ============================================================
     
-    windows = df.groupby('window').agg(
-        bull_count=('bull_of', 'sum'),
-        bear_count=('bear_of', 'sum'),
-        close_price=('close', 'last'),
-    ).reset_index()
+    signal = None
     
-    for _, w in windows.iterrows():
-        total = w['bull_count'] + w['bear_count']
-        if total < MIN_SIGNALS:
-            continue
-        
-        bull_pct = (w['bull_count'] / total) * 100
-        
-        signal = None
-        if bull_pct <= BUY_THRESHOLD:
-            signal = 'BUY'
-        elif bull_pct >= SELL_THRESHOLD:
-            signal = 'SELL'
-        
-        if signal is None:
-            continue
-        
-        return {
-            'symbol': symbol,
-            'bull_count': int(w['bull_count']),
-            'bear_count': int(w['bear_count']),
-            'bull_pct': bull_pct,
-            'signal': signal,
-            'price': w['close_price'],
-        }
+    # 🟢 بلش کے لیے 5 رولز
+    if (poc_position > POC_BULL_MIN and           # رول 1
+        delta > DELTA_MIN and                      # رول 2
+        ratio > RATIO_BULL_MIN and                 # رول 3
+        is_uptrend):                               # رول 4 (رجحان کے ساتھ)
+        signal = 'BUY'
     
-    return None
+    # 🔴 بیئرش کے لیے 5 رولز
+    elif (poc_position < POC_BEAR_MAX and         # رول 1 (Extreme)
+          delta < -DELTA_MIN and                   # رول 2
+          ratio < RATIO_BEAR_MAX and               # رول 3
+          not is_uptrend):                         # رول 4 (رجحان کے ساتھ)
+        signal = 'SELL'
+    
+    if signal is None:
+        return None
+    
+    return {
+        'symbol': symbol,
+        'signal': signal,
+        'price': close_price,
+        'poc': last.poc_price,
+        'poc_position': poc_position,
+        'delta': delta,
+        'ratio': ratio,
+        'is_uptrend': is_uptrend,
+    }
 
 
 # ============================================================
-# 📲 Nfty (TP اور SL کے ساتھ)
+# 📲 Nfty نوٹیفکیشن
 # ============================================================
 def send_nfty(signals):
     if not signals:
@@ -300,44 +259,42 @@ def send_nfty(signals):
     buys = [s for s in signals if s['signal'] == 'BUY']
     sells = [s for s in signals if s['signal'] == 'SELL']
     
-    lines = [f"🎯 {len(signals)} سگنلز (1h)\n"]
+    lines = [f"🎯 {len(signals)} سگنلز (4h Order Flow)\n"]
     
     if buys:
         lines.append(f"🟢 BUY ({len(buys)}):")
-        for s in buys[:12]:
+        for s in buys:
             sym = s['symbol'].replace("USDT", "")
             entry = s['price']
             tp = entry * (1 + TARGET_PCT/100)
             sl = entry * (1 - STOP_PCT/100)
             lines.append(f"━━━━━━━━━━━━━━━")
-            lines.append(f"  {sym} | Bull% {s['bull_pct']:.0f}%")
-            lines.append(f"  Entry: ${entry:,.4f}")
-            lines.append(f"  TP: ${tp:,.4f} (+{TARGET_PCT}%)")
-            lines.append(f"  SL: ${sl:,.4f} (-{STOP_PCT}%)")
-        if len(buys) > 12:
-            lines.append(f"  +{len(buys)-12} مزید")
+            lines.append(f"{sym}")
+            lines.append(f"Entry: ${entry:,.4f}")
+            lines.append(f"TP: ${tp:,.4f} (+{TARGET_PCT}%)")
+            lines.append(f"SL: ${sl:,.4f} (-{STOP_PCT}%)")
+            lines.append(f"POC: {s['poc_position']:.2f} | Delta: +{s['delta']/1e6:.0f}M | Ratio: {s['ratio']:.2f}")
     
     if sells:
         lines.append(f"\n🔴 SELL ({len(sells)}):")
-        for s in sells[:12]:
+        for s in sells:
             sym = s['symbol'].replace("USDT", "")
             entry = s['price']
             tp = entry * (1 - TARGET_PCT/100)
             sl = entry * (1 + STOP_PCT/100)
             lines.append(f"━━━━━━━━━━━━━━━")
-            lines.append(f"  {sym} | Bull% {s['bull_pct']:.0f}%")
-            lines.append(f"  Entry: ${entry:,.4f}")
-            lines.append(f"  TP: ${tp:,.4f} (-{TARGET_PCT}%)")
-            lines.append(f"  SL: ${sl:,.4f} (+{STOP_PCT}%)")
-        if len(sells) > 12:
-            lines.append(f"  +{len(sells)-12} مزید")
+            lines.append(f"{sym}")
+            lines.append(f"Entry: ${entry:,.4f}")
+            lines.append(f"TP: ${tp:,.4f} (-{TARGET_PCT}%)")
+            lines.append(f"SL: ${sl:,.4f} (+{STOP_PCT}%)")
+            lines.append(f"POC: {s['poc_position']:.2f} | Delta: {s['delta']/1e6:.0f}M | Ratio: {s['ratio']:.2f}")
     
     try:
         r = requests.post(
             NFTY_URL,
             data="\n".join(lines).encode('utf-8'),
             headers={
-                "Title": f"🎯 {len(signals)} سگنلز (1h)",
+                "Title": f"🎯 {len(signals)} سگنلز (4h)",
                 "Priority": "high",
                 "Tags": "rotating_light,moneybag",
             },
@@ -346,7 +303,7 @@ def send_nfty(signals):
         if r.status_code == 200:
             print(f"✅ Nfty بھیجا")
     except Exception as e:
-        print(f"❌ Nfty: {e}")
+        print(f"❌ {e}")
 
 
 # ============================================================
@@ -355,78 +312,65 @@ def send_nfty(signals):
 def main():
     start = datetime.now()
     print("=" * 70)
-    print(f"🚀 {start.strftime('%H:%M:%S')} | 1h ٹائم فریم")
-    print(f"⚙️ POC {POC_MIN}-{POC_MAX} | B≤{BUY_THRESHOLD}% S≥{SELL_THRESHOLD}% | Min{MIN_SIGNALS}")
-    print(f"🎯 Target: {TARGET_PCT}% | Stop: {STOP_PCT}%")
+    print(f"🚀 {start.strftime('%H:%M:%S')} | 4h Order Flow (5 Rules)")
+    print(f"📊 کوئنز: {MAX_SYMBOLS}")
+    print(f"⚙️ POC > {POC_BULL_MIN} | Delta > {DELTA_MIN/1e6:.0f}M | Ratio > {RATIO_BULL_MIN}")
+    print(f"🎯 TP: {TARGET_PCT}% | SL: {STOP_PCT}%")
     print("=" * 70)
     
     base_url = get_working_endpoint()
     if not base_url:
-        print("❌ کوئی endpoint کام نہیں کر رہا")
         return
     print(f"✅ {base_url}\n")
     
-    # مرحلہ 1: 400 کوئنز
     symbols = get_top_symbols(base_url)
     if not symbols:
         return
     
-    # مرحلہ 2: Klines فلٹر (تیز)
-    print(f"\n🔍 مرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
-    
+    # مرحلہ 1: تیز فلٹر
+    print(f"🔍 مرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
     candidates = []
-    completed = 0
     
     with ThreadPoolExecutor(max_workers=THREADS_KLINES) as ex:
-        futures = {ex.submit(quick_scan_klines, base_url, s): s for s in symbols}
+        futures = {ex.submit(quick_scan, base_url, s): s for s in symbols}
         for f in as_completed(futures):
-            completed += 1
-            if completed % 50 == 0:
-                print(f"   ⏳ {completed}/{len(symbols)}")
             try:
-                r = f.result(timeout=30)
+                r = f.result(timeout=20)
                 if r:
                     candidates.append(r)
             except:
                 continue
     
-    elapsed1 = (datetime.now() - start).total_seconds()
-    print(f"✅ {len(candidates)} کوئنز پاس | {elapsed1:.0f}s")
+    print(f"✅ {len(candidates)} کوئنز پاس")
     
     if not candidates:
-        print("⏳ کوئی کوئن نہیں ملا")
+        print("⏳ کوئی کوئن نہیں")
         return
     
-    # مرحلہ 3: aggTrades (درست POC)
-    print(f"\n🔍 مرحلہ 2: {len(candidates)} کوئنز aggTrades تصدیق...")
-    
+    # مرحلہ 2: اصل POC
+    print(f"\n🔍 مرحلہ 2: {len(candidates)} کوئنز aggTrades...")
     signals = []
-    completed = 0
     
     with ThreadPoolExecutor(max_workers=THREADS_AGG) as ex:
-        futures = {ex.submit(verify_with_aggtrades, base_url, c['symbol']): c['symbol'] 
+        futures = {ex.submit(analyze_symbol, base_url, c['symbol']): c['symbol'] 
                    for c in candidates}
         for f in as_completed(futures):
-            completed += 1
-            if completed % 5 == 0:
-                print(f"   ⏳ {completed}/{len(candidates)}")
             try:
-                r = f.result(timeout=180)
+                r = f.result(timeout=120)
                 if r:
                     signals.append(r)
-                    print(f"   🎯 {r['symbol']}: {r['signal']} ({r['bull_pct']:.0f}%)")
+                    print(f"   🎯 {r['symbol']}: {r['signal']} "
+                          f"(POC {r['poc_position']:.2f}, Delta {r['delta']/1e6:+.0f}M)")
             except:
                 continue
     
-    elapsed2 = (datetime.now() - start).total_seconds()
-    print(f"\n{'='*70}")
-    print(f"📊 {len(symbols)} کوئنز | {len(signals)} سگنلز | کل {elapsed2:.0f}s")
-    print(f"{'='*70}")
+    elapsed = (datetime.now() - start).total_seconds()
+    print(f"\n📊 {len(symbols)} کوئنز | {len(signals)} سگنلز | {elapsed:.0f}s")
     
     if signals:
         send_nfty(signals)
     else:
-        print("⏳ کوئی سگنل نہیں — یہ معمول ہے، اگلی بار دیکھیں")
+        print("⏳ کوئی سگنل نہیں (کوئی کوئن 5 رولز پر پورا نہیں اترا)")
 
 
 if __name__ == "__main__":
