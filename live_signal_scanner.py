@@ -2,14 +2,15 @@ import os
 import requests
 import pandas as pd
 import numpy as np
+import time
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
 
 # ============================================================
-# ⚙️ سیٹنگز — 5 رولز (91.7% WR)
+# ⚙️ سیٹنگز
 # ============================================================
-BASE_URL = "https://whitebit.com"
+BASE_URL = "https://data-api.binance.vision"
 TIMEFRAME = "4h"
 HISTORY_HOURS = 6
 
@@ -21,14 +22,13 @@ RATIO_BULL_MIN = 1.1
 RATIO_BEAR_MAX = 0.9
 EMA_TREND = 20
 
-# TP/SL
 TARGET_PCT = 2.0
 STOP_PCT = 1.0
 
-# کوئنز
 MAX_SYMBOLS = 400
-THREADS_KLINES = 30
-THREADS_AGG = 10
+THREADS_KLINES = 8      # کم threads (rate limit)
+THREADS_AGG = 4         # کم threads (rate limit)
+DELAY = 0.05            # ہر request کے بعد وقفہ
 
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
@@ -37,61 +37,69 @@ if not NFTY_URL:
 
 
 # ============================================================
-# 🔧 ہیلپر: Response کو list میں بدلیں
+# Rate Limited GET
 # ============================================================
-def to_list(data):
-    """WhiteBIT کا response list یا dict ہو سکتا ہے"""
-    if isinstance(data, list):
-        return data
-    if isinstance(data, dict):
-        return data.get('result', [])
-    return []
-
-
-def to_dict(data):
-    if isinstance(data, dict):
-        return data.get('result', {})
-    return {}
+def safe_get(url, params=None, timeout=10):
+    """Rate limit کے ساتھ GET"""
+    try:
+        r = requests.get(url, params=params, timeout=timeout)
+        if r.status_code == 429:
+            print(f"Rate limited — waiting 5s")
+            time.sleep(5)
+            r = requests.get(url, params=params, timeout=timeout)
+        time.sleep(DELAY)
+        return r.json()
+    except:
+        return None
 
 
 # ============================================================
-# 📋 مارکیٹس حاصل کریں
+# 📋 مارکیٹس
 # ============================================================
 def get_all_markets():
-    print("WhiteBIT مارکیٹس...")
+    print("Binance مارکیٹس...")
     try:
-        r = requests.get(f"{BASE_URL}/api/v4/public/markets", timeout=30)
-        markets = to_list(r.json())
+        data = safe_get(f"{BASE_URL}/api/v3/exchangeInfo")
+        if not data or 'symbols' not in data:
+            return []
+        
+        skip = ["USDCUSDT", "BUSDUSDT", "TUSDUSDT", "FDUSDUSDT", "DAIUSDT",
+                "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY", "USDTBIDR"]
         
         symbols = []
-        for m in markets:
-            if not isinstance(m, dict):
+        for s in data['symbols']:
+            if s.get('quoteAsset') != 'USDT':
                 continue
-            name = m.get('name', '')
-            if not name.endswith('_USDT'):
+            if s.get('status') != 'TRADING':
                 continue
-            if m.get('status') != 'active':
+            sym = s.get('symbol', '')
+            if sym in skip:
                 continue
-            symbols.append(name)
+            if 'UP' in sym or 'DOWN' in sym or 'BULL' in sym or 'BEAR' in sym:
+                continue
+            symbols.append(sym)
         
         print(f"کل USDT مارکیٹس: {len(symbols)}")
         
-        # والیوم کے لحاظ سے ترتیب
-        r2 = requests.get(f"{BASE_URL}/api/v4/public/ticker", timeout=30)
-        tickers = to_dict(r2.json())
+        # والیوم کے لحاظ سے
+        ticker_data = safe_get(f"{BASE_URL}/api/v3/ticker/24hr")
+        if not isinstance(ticker_data, list):
+            return symbols[:MAX_SYMBOLS]
         
+        symbol_set = set(symbols)
         volumes = []
-        for sym in symbols:
+        for t in ticker_data:
+            sym = t.get('symbol')
+            if sym not in symbol_set:
+                continue
             try:
-                t = tickers.get(sym, {})
-                if isinstance(t, dict):
-                    vol = float(t.get('quoteVolume', 0) or 0)
-                    volumes.append((sym, vol))
+                vol = float(t.get('quoteVolume', 0))
+                volumes.append((sym, vol))
             except:
-                volumes.append((sym, 0))
+                continue
         
         volumes.sort(key=lambda x: x[1], reverse=True)
-        result = [m for m, v in volumes[:MAX_SYMBOLS]]
+        result = [s for s, v in volumes[:MAX_SYMBOLS]]
         print(f"{len(result)} کوئنز منتخب")
         return result
     except Exception as e:
@@ -100,89 +108,73 @@ def get_all_markets():
 
 
 # ============================================================
-# ⚡ مرحلہ 1: Klines تیز فلٹر
+# ⚡ مرحلہ 1: Klines
 # ============================================================
 def quick_scan(symbol):
-    try:
-        r = requests.get(
-            f"{BASE_URL}/api/v4/public/kline",
-            params={"market": symbol, "interval": "4h", "limit": 30},
-            timeout=10
-        )
-        klines = to_list(r.json())
-        
-        if len(klines) < 5:
-            return None
-        
-        # آخری مکمل 4h کینڈل
-        k = klines[-2]
-        if not isinstance(k, list) or len(k) < 7:
-            return None
-        
-        o = float(k[2])
-        c = float(k[5])
-        vol = float(k[6])
-        
-        if c > o:
-            buy_pct = 0.7
-        elif c < o:
-            buy_pct = 0.3
-        else:
-            return None
-        
-        delta_est = (buy_pct - 0.5) * vol * 1e6
-        ratio_est = buy_pct / (1 - buy_pct)
-        
-        if abs(delta_est) > DELTA_MIN * 0.3 or ratio_est > 1.15 or ratio_est < 0.85:
-            return {'symbol': symbol}
+    data = safe_get(f"{BASE_URL}/api/v3/klines",
+                    params={"symbol": symbol, "interval": TIMEFRAME, "limit": 30})
+    
+    if not isinstance(data, list) or len(data) < 25:
         return None
-    except:
+    
+    k = data[-2]
+    o = float(k[1]); c = float(k[4]); vol = float(k[5])
+    
+    if c > o:
+        buy_pct = 0.7
+    elif c < o:
+        buy_pct = 0.3
+    else:
         return None
+    
+    delta_est = (buy_pct - 0.5) * vol * 1e6
+    ratio_est = buy_pct / (1 - buy_pct)
+    
+    if abs(delta_est) > DELTA_MIN * 0.3 or ratio_est > 1.15 or ratio_est < 0.85:
+        return {'symbol': symbol}
+    return None
 
 
 # ============================================================
-# 📥 ٹریڈز سے اصل POC
+# 📥 aggTrades
 # ============================================================
 def load_aggtrades(symbol):
     end_time = int(datetime.now().timestamp() * 1000)
     start_time = end_time - (HISTORY_HOURS * 60 * 60 * 1000)
     
-    try:
-        r = requests.get(
-            f"{BASE_URL}/api/v4/public/trades/{symbol}",
-            timeout=15
-        )
-        trades_data = to_list(r.json())
+    all_trades = []
+    current = start_time
+    chunks = 0
+    empty = 0
+    
+    while current < end_time and chunks < 20:
+        data = safe_get(f"{BASE_URL}/api/v3/aggTrades",
+                       params={"symbol": symbol, "startTime": current, "endTime": end_time, "limit": 1000})
         
-        trades = []
-        for t in trades_data:
-            if not isinstance(t, dict):
-                continue
-            try:
-                ts = int(t.get('time', 0)) * 1000
-                if ts >= start_time:
-                    # WhiteBIT: type = 'buy' یا 'sell'
-                    # 'sell' کا مطلب ہے کہ بیچنے والا مارکیٹ آرڈر لگا رہا ہے
-                    # جب 'sell' = Bid پر ٹریڈ = is_bid_trade = True
-                    trades.append({
-                        'T': ts,
-                        'p': float(t.get('price', 0)),
-                        'q': float(t.get('amount', 0)),
-                        'm': t.get('type') == 'sell'
-                    })
-            except:
-                continue
-        return trades
-    except:
-        return []
+        if not isinstance(data, list):
+            break
+        if len(data) == 0:
+            empty += 1
+            if empty >= 2:
+                break
+            current += 60000
+            continue
+        empty = 0
+        all_trades.extend(data)
+        if len(data) < 1000:
+            break
+        current = data[-1]['T'] + 1
+        chunks += 1
+    
+    return all_trades
 
 
 # ============================================================
-# 🎯 5 رولز کا تجزیہ
+# 🎯 5 رولز
 # ============================================================
 def analyze_symbol(symbol):
     trades = load_aggtrades(symbol)
-    if not trades or len(trades) < 50:
+    if not trades or len(trades) < 500:
         return None
     
     config = FootprintEngineConfig(
@@ -197,9 +189,9 @@ def analyze_symbol(symbol):
         try:
             engine.process_tick(
                 timestamp=datetime.fromtimestamp(t['T'] / 1000),
-                price=t['p'],
-                volume=max(1, int(t['q'] * 100000)),
-                is_bid_trade=t['m']
+                price=float(t['p']),
+                volume=max(1, int(float(t['q']) * 100000)),
+                is_bid_trade=not t['m']
             )
         except:
             continue
@@ -209,42 +201,27 @@ def analyze_symbol(symbol):
         return None
     
     last = bars[-1]
-    
-    # میٹرکس
     rng = last.high_price - last.low_price
     poc_position = (last.poc_price - last.low_price) / rng if rng > 0 else 0.5
     ratio = last.total_bar_ask_volume / last.total_bar_bid_volume if last.total_bar_bid_volume > 0 else 1.0
     delta = last.bar_delta
     
-    # رول 4: EMA20
-    try:
-        r = requests.get(
-            f"{BASE_URL}/api/v4/public/kline",
-            params={"market": symbol, "interval": "4h", "limit": 25},
-            timeout=8
-        )
-        klines = to_list(r.json())
-        closes = [float(k[5]) for k in klines if isinstance(k, list) and len(k) > 5]
-        if len(closes) >= 20:
-            ema20 = pd.Series(closes).ewm(span=EMA_TREND).mean().iloc[-1]
-            is_uptrend = last.close_price > ema20
-        else:
-            is_uptrend = True
-    except:
-        is_uptrend = True
+    # EMA20
+    klines = safe_get(f"{BASE_URL}/api/v3/klines",
+                     params={"symbol": symbol, "interval": TIMEFRAME, "limit": 25})
+    is_uptrend = True
+    if isinstance(klines, list) and len(klines) >= 20:
+        closes = [float(k[4]) for k in klines]
+        ema20 = pd.Series(closes).ewm(span=EMA_TREND).mean().iloc[-1]
+        is_uptrend = last.close_price > ema20
     
-    # 5 رولز
     signal = None
     
-    if (poc_position > POC_BULL_MIN and 
-        delta > DELTA_MIN and 
-        ratio > RATIO_BULL_MIN and 
-        is_uptrend):
+    if (poc_position > POC_BULL_MIN and delta > DELTA_MIN and 
+        ratio > RATIO_BULL_MIN and is_uptrend):
         signal = 'BUY'
-    elif (poc_position < POC_BEAR_MAX and 
-          delta < -DELTA_MIN and 
-          ratio < RATIO_BEAR_MAX and 
-          not is_uptrend):
+    elif (poc_position < POC_BEAR_MAX and delta < -DELTA_MIN and 
+          ratio < RATIO_BEAR_MAX and not is_uptrend):
         signal = 'SELL'
     
     if signal is None:
@@ -261,7 +238,7 @@ def analyze_symbol(symbol):
 
 
 # ============================================================
-# 📲 Nfty (Emoji کے بغیر)
+# 📲 Nfty
 # ============================================================
 def send_nfty(signals):
     if not signals:
@@ -270,12 +247,12 @@ def send_nfty(signals):
     buys = [s for s in signals if s['signal'] == 'BUY']
     sells = [s for s in signals if s['signal'] == 'SELL']
     
-    lines = [f"{len(signals)} Signals (4h Order Flow)\n"]
+    lines = [f"{len(signals)} Signals (4h OF)\n"]
     
     if buys:
         lines.append(f"BUY ({len(buys)}):")
         for s in buys:
-            sym = s['symbol'].replace("_USDT", "")
+            sym = s['symbol'].replace("USDT", "")
             entry = s['price']
             tp = entry * (1 + TARGET_PCT/100)
             sl = entry * (1 - STOP_PCT/100)
@@ -287,7 +264,7 @@ def send_nfty(signals):
     if sells:
         lines.append(f"\nSELL ({len(sells)}):")
         for s in sells:
-            sym = s['symbol'].replace("_USDT", "")
+            sym = s['symbol'].replace("USDT", "")
             entry = s['price']
             tp = entry * (1 - TARGET_PCT/100)
             sl = entry * (1 + STOP_PCT/100)
@@ -299,19 +276,12 @@ def send_nfty(signals):
     message = "\n".join(lines)
     
     try:
-        r = requests.post(
-            NFTY_URL,
-            data=message.encode('utf-8'),
-            headers={
-                "Title": f"{len(signals)} Signals (4h)",
-                "Priority": "high",
-                "Tags": "rotating_light,moneybag",
-            },
-            timeout=15
-        )
+        r = requests.post(NFTY_URL, data=message.encode('utf-8'),
+            headers={"Title": f"{len(signals)} Signals (4h)",
+                     "Priority": "high",
+                     "Tags": "rotating_light,moneybag"},
+            timeout=15)
         print(f"Nfty: {r.status_code}")
-        if r.status_code != 200:
-            print(f"Nfty Error: {r.text}")
     except Exception as e:
         print(f"Nfty Exception: {e}")
 
@@ -321,11 +291,9 @@ def send_nfty(signals):
 # ============================================================
 def main():
     start = datetime.now()
-    print("=" * 70)
-    print(f"{start.strftime('%H:%M:%S')} | WhiteBIT | 4h | 5 Rules")
-    print(f"کوئنز: {MAX_SYMBOLS}")
-    print(f"POC>{POC_BULL_MIN} | Delta>{DELTA_MIN/1e6:.0f}M | Ratio>{RATIO_BULL_MIN}")
-    print("=" * 70)
+    print("=" * 60)
+    print(f"{start.strftime('%H:%M:%S')} | Binance | 4h | 5 Rules")
+    print("=" * 60)
     
     symbols = get_all_markets()
     if not symbols:
@@ -333,7 +301,7 @@ def main():
         return
     
     # مرحلہ 1
-    print(f"\nمرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
+    print(f"\nمرحلہ 1: {len(symbols)} کوئنز...")
     candidates = []
     completed = 0
     
@@ -357,7 +325,7 @@ def main():
         return
     
     # مرحلہ 2
-    print(f"\nمرحلہ 2: {len(candidates)} کوئنز aggTrades...")
+    print(f"\nمرحلہ 2: {len(candidates)} کوئنز...")
     signals = []
     completed = 0
     
@@ -366,7 +334,7 @@ def main():
                    for c in candidates}
         for f in as_completed(futures):
             completed += 1
-            if completed % 10 == 0:
+            if completed % 5 == 0:
                 print(f"   {completed}/{len(candidates)}")
             try:
                 r = f.result(timeout=30)
