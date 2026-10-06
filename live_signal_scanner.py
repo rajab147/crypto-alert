@@ -1,368 +1,314 @@
 import os
+import sys
+import time
 import requests
-import pandas as pd
 import numpy as np
-from datetime import datetime
+import pandas as pd
+from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
+from requests.adapters import HTTPAdapter
 
 # ============================================================
-# ⚙️ سیٹنگز
+# سیٹنگز
 # ============================================================
-TIMEFRAME = "4h"
-HISTORY_HOURS = 6           # صرف 6 گھنٹے (تیز)
-HISTORY_CANDLES = 30
+BAR_HOURS = 4                  # 4h بار (UTC حدود: 00,04,08,12,16,20)
+MIN_1M_CANDLES = 200           # 240 میں سے کم از کم (کم لیکوئڈ کوئنز میں منٹ غائب ہو سکتے ہیں)
+NUM_BINS = 40                  # POC کے لیے قیمت کے bins
 
-# 5 رولز
+# رولز
 POC_BULL_MIN = 0.65
 POC_BEAR_MAX = 0.25
-DELTA_MIN = 30_000_000
-RATIO_BULL_MIN = 1.1
+DELTA_MIN_USDT = 1_000_000     # 4h بار کا net taker delta (USDT میں) — اپنے حساب سے ٹیون کریں
+RATIO_BULL_MIN = 1.1           # taker buy / taker sell
 RATIO_BEAR_MAX = 0.9
 EMA_TREND = 20
 
 TARGET_PCT = 2.0
 STOP_PCT = 1.0
-MAX_HOLD = 6
 
-MIN_VOLUME_USDT = 10_000_000
+MIN_VOLUME_USDT = 10_000_000   # 24h quote volume
 MAX_SYMBOLS = 200
-THREADS_KLINES = 30
-THREADS_AGG = 15
-MAX_CHUNKS = 20
+THREADS = 10
+
+# بار بند ہونے کے بعد کتنے منٹ تک سگنل تازہ مانا جائے
+ENFORCE_FRESH = True
+MAX_BAR_AGE_MIN = 60
+
+STABLES = {"USDC", "BUSD", "TUSD", "FDUSD", "DAI", "EUR", "GBP", "AEUR",
+           "USDP", "USTC", "PAXG", "XUSD", "USD1"}
+LEVERAGED_SUFFIXES = ("UP", "DOWN", "BULL", "BEAR")
 
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
     print("NFTY_URL set نہیں ہے")
-    exit(1)
+    sys.exit(1)
 
 BINANCE_ENDPOINTS = [
     "https://data-api.binance.vision",
     "https://api.binance.com",
 ]
 
+session = requests.Session()
+session.mount("https://", HTTPAdapter(pool_connections=THREADS, pool_maxsize=THREADS * 2))
+
+
+# ============================================================
+# نیٹ ورک (retry + rate limit کا خیال)
+# ============================================================
+def get_json(url, params=None, retries=3, timeout=10):
+    for attempt in range(retries):
+        try:
+            r = session.get(url, params=params, timeout=timeout)
+            if r.status_code == 200:
+                return r.json()
+            if r.status_code in (429, 418):
+                wait = int(r.headers.get("Retry-After", 5))
+                print(f"   rate limit ({r.status_code}) — {wait}s انتظار")
+                time.sleep(min(wait, 60))
+                continue
+            time.sleep(1)
+        except Exception:
+            time.sleep(1)
+    return None
+
 
 def get_working_endpoint():
     for url in BINANCE_ENDPOINTS:
         try:
-            r = requests.get(f"{url}/api/v3/ping", timeout=5)
-            if r.status_code == 200:
+            if session.get(f"{url}/api/v3/ping", timeout=5).status_code == 200:
                 return url
-        except:
+        except Exception:
             continue
     return None
 
 
 # ============================================================
-# 📋 200 کوئنز
+# کوئنز کی فہرست (آخری قیمت کے ساتھ)
 # ============================================================
 def get_top_symbols(base_url):
     print("USDT کوئنز...")
-    try:
-        r = requests.get(f"{base_url}/api/v3/ticker/24hr", timeout=30)
-        data = r.json()
-        if not isinstance(data, list):
-            return []
-        
-        skip = ["USDCUSDT", "BUSDUSDT", "TUSDUSDT", "FDUSDUSDT", "DAIUSDT",
-                "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY", "USDTBIDR"]
-        
-        volumes = []
-        for t in data:
-            sym = t.get('symbol', '')
-            if not sym.endswith('USDT') or sym in skip:
-                continue
-            if 'UP' in sym or 'DOWN' in sym or 'BULL' in sym or 'BEAR' in sym:
-                continue
-            try:
-                vol = float(t.get('quoteVolume', 0))
-                if vol >= MIN_VOLUME_USDT:
-                    volumes.append((sym, vol))
-            except:
-                continue
-        
-        volumes.sort(key=lambda x: x[1], reverse=True)
-        result = [s for s, v in volumes[:MAX_SYMBOLS]]
-        print(f"{len(result)} کوئنز")
-        return result
-    except Exception as e:
-        print(f"Error: {e}")
+    data = get_json(f"{base_url}/api/v3/ticker/24hr", timeout=30)
+    if not isinstance(data, list):
         return []
 
-
-# ============================================================
-# ⚡ مرحلہ 1: Klines تیز فلٹر
-# ============================================================
-def quick_scan(base_url, symbol):
-    url = f"{base_url}/api/v3/klines"
-    params = {"symbol": symbol, "interval": TIMEFRAME, "limit": HISTORY_CANDLES}
-    
-    try:
-        r = requests.get(url, params=params, timeout=8)
-        data = r.json()
-        if not isinstance(data, list) or len(data) < 25:
-            return None
-        
-        k = data[-2]
-        o = float(k[1]); c = float(k[4]); vol = float(k[5])
-        
-        if c > o:
-            buy_pct = 0.7
-        elif c < o:
-            buy_pct = 0.3
-        else:
-            return None
-        
-        delta_est = (buy_pct - 0.5) * vol * 1e6
-        ratio_est = buy_pct / (1 - buy_pct)
-        
-        if (abs(delta_est) > DELTA_MIN * 0.3 or 
-            ratio_est > 1.15 or ratio_est < 0.85):
-            return {'symbol': symbol}
-        return None
-    except:
-        return None
-
-
-# ============================================================
-# 📥 aggTrades
-# ============================================================
-def load_aggtrades(base_url, symbol):
-    end_time = int(datetime.now().timestamp() * 1000)
-    start_time = end_time - (HISTORY_HOURS * 60 * 60 * 1000)
-    
-    all_trades = []
-    current = start_time
-    chunks = 0
-    empty = 0
-    
-    while current < end_time and chunks < MAX_CHUNKS:
-        url = f"{base_url}/api/v3/aggTrades"
-        params = {"symbol": symbol, "startTime": current, "endTime": end_time, "limit": 1000}
-        try:
-            r = requests.get(url, params=params, timeout=8)
-            data = r.json()
-            if not isinstance(data, list):
-                break
-            if len(data) == 0:
-                empty += 1
-                if empty >= 2:
-                    break
-                current += 60000
-                continue
-            empty = 0
-            all_trades.extend(data)
-            if len(data) < 1000:
-                break
-            current = data[-1]['T'] + 1
-            chunks += 1
-        except:
-            break
-    
-    return all_trades
-
-
-# ============================================================
-# 🎯 5 رولز
-# ============================================================
-def analyze_symbol(base_url, symbol):
-    trades = load_aggtrades(base_url, symbol)
-    if not trades or len(trades) < 500:
-        return None
-    
-    config = FootprintEngineConfig(
-        tick_size=0.00001,
-        aggregation_type=AggregationType.TIME,
-        aggregation_value="4h",
-        value_area_percentage=0.7,
-    )
-    engine = FootprintEngine(config=config)
-    
-    for t in trades:
-        try:
-            engine.process_tick(
-                timestamp=datetime.fromtimestamp(t['T'] / 1000),
-                price=float(t['p']),
-                volume=max(1, int(float(t['q']) * 100000)),
-                is_bid_trade=not t['m']
-            )
-        except:
+    all_syms = {t.get("symbol", "") for t in data}
+    rows = []
+    for t in data:
+        sym = t.get("symbol", "")
+        if not sym.endswith("USDT"):
             continue
-    
-    bars = engine.get_all_completed_bars()
-    if len(bars) < 1:
+        base = sym[:-4]
+        if base in STABLES:
+            continue
+        # leveraged ٹوکن: صرف تب خارج جب اصل کوئن بھی موجود ہو (JUP, SUPER وغیرہ بچ جائیں)
+        skip = False
+        for suf in LEVERAGED_SUFFIXES:
+            if base.endswith(suf) and (base[:-len(suf)] + "USDT") in all_syms:
+                skip = True
+                break
+        if skip:
+            continue
+        try:
+            vol = float(t["quoteVolume"])
+            price = float(t["lastPrice"])
+        except Exception:
+            continue
+        if vol >= MIN_VOLUME_USDT and price > 0:
+            rows.append((sym, vol, price))
+
+    rows.sort(key=lambda x: x[1], reverse=True)
+    rows = rows[:MAX_SYMBOLS]
+    print(f"{len(rows)} کوئنز")
+    return [(s, p) for s, v, p in rows]
+
+
+# ============================================================
+# بار کی UTC حدود (آخری مکمل 4h بار)
+# ============================================================
+def last_closed_bar_window():
+    now = datetime.now(timezone.utc)
+    cur_start = now.replace(hour=(now.hour // BAR_HOURS) * BAR_HOURS,
+                            minute=0, second=0, microsecond=0)
+    bar_start = cur_start - timedelta(hours=BAR_HOURS)
+    bar_end = cur_start
+    return now, bar_start, bar_end
+
+
+# ============================================================
+# تجزیہ: 1m klines سے delta, ratio, POC
+# ============================================================
+def analyze_symbol(base_url, symbol, cur_price, bar_start, bar_end):
+    start_ms = int(bar_start.timestamp() * 1000)
+    end_ms = int(bar_end.timestamp() * 1000) - 1
+
+    k1 = get_json(f"{base_url}/api/v3/klines", {
+        "symbol": symbol, "interval": "1m",
+        "startTime": start_ms, "endTime": end_ms,
+        "limit": BAR_HOURS * 60,
+    })
+    if not isinstance(k1, list) or len(k1) < MIN_1M_CANDLES:
         return None
-    
-    last = bars[-1]
-    
-    rng = last.high_price - last.low_price
-    poc_position = (last.poc_price - last.low_price) / rng if rng > 0 else 0.5
-    ratio = last.total_bar_ask_volume / last.total_bar_bid_volume if last.total_bar_bid_volume > 0 else 1.0
-    delta = last.bar_delta
-    
-    # EMA20
-    url = f"{base_url}/api/v3/klines"
-    params = {"symbol": symbol, "interval": TIMEFRAME, "limit": 25}
-    try:
-        r = requests.get(url, params=params, timeout=8)
-        klines = r.json()
-        closes = [float(k[4]) for k in klines]
-        ema20 = pd.Series(closes).ewm(span=20).mean().iloc[-1]
-        is_uptrend = last.close_price > ema20
-    except:
-        is_uptrend = True
-    
+
+    arr = np.array([[float(k[2]), float(k[3]), float(k[4]), float(k[7]), float(k[10])]
+                    for k in k1])
+    high, low, close, qv, tbq = arr[:, 0], arr[:, 1], arr[:, 2], arr[:, 3], arr[:, 4]
+
+    total_qv = qv.sum()
+    buy_q = tbq.sum()
+    sell_q = total_qv - buy_q
+    if total_qv <= 0 or sell_q <= 0 or buy_q <= 0:
+        return None
+
+    delta = buy_q - sell_q                  # USDT میں
+    ratio = buy_q / sell_q
+
+    bar_high, bar_low = high.max(), low.min()
+    rng = bar_high - bar_low
+    if rng <= 0:
+        return None
+
+    # POC کا تخمینہ: ہر منٹ کی typical price کو quote volume کے وزن سے histogram میں ڈالیں
+    typical = (high + low + close) / 3.0
+    hist, edges = np.histogram(typical, bins=NUM_BINS, range=(bar_low, bar_high), weights=qv)
+    idx = int(np.argmax(hist))
+    poc_price = (edges[idx] + edges[idx + 1]) / 2.0
+    poc_position = (poc_price - bar_low) / rng
+
+    # EMA20 (صرف بند کینڈلز)
+    k4 = get_json(f"{base_url}/api/v3/klines", {
+        "symbol": symbol, "interval": f"{BAR_HOURS}h", "limit": EMA_TREND + 15,
+    })
+    if not isinstance(k4, list) or len(k4) < EMA_TREND + 2:
+        return None
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    closed = [k for k in k4 if int(k[6]) < now_ms]
+    if len(closed) < EMA_TREND + 1:
+        return None
+    closes = pd.Series([float(k[4]) for k in closed])
+    ema = closes.ewm(span=EMA_TREND, adjust=False).mean().iloc[-1]
+    last_close = closes.iloc[-1]
+    is_uptrend = last_close > ema
+
     signal = None
-    
-    if (poc_position > POC_BULL_MIN and 
-        delta > DELTA_MIN and 
-        ratio > RATIO_BULL_MIN and 
-        is_uptrend):
-        signal = 'BUY'
-    elif (poc_position < POC_BEAR_MAX and 
-          delta < -DELTA_MIN and 
-          ratio < RATIO_BEAR_MAX and 
-          not is_uptrend):
-        signal = 'SELL'
-    
+    if (poc_position > POC_BULL_MIN and delta > DELTA_MIN_USDT
+            and ratio > RATIO_BULL_MIN and is_uptrend):
+        signal = "BUY"
+    elif (poc_position < POC_BEAR_MAX and delta < -DELTA_MIN_USDT
+          and ratio < RATIO_BEAR_MAX and not is_uptrend):
+        signal = "SELL"
+
     if signal is None:
         return None
-    
+
     return {
-        'symbol': symbol,
-        'signal': signal,
-        'price': last.close_price,
-        'poc_position': poc_position,
-        'delta': delta,
-        'ratio': ratio,
+        "symbol": symbol,
+        "signal": signal,
+        "price": cur_price,           # موجودہ قیمت
+        "bar_close": float(close[-1]),
+        "poc_position": poc_position,
+        "delta": delta,
+        "ratio": ratio,
     }
 
 
 # ============================================================
-# 📲 Nfty (Emoji کے بغیر — صاف)
+# Nfty
 # ============================================================
-def send_nfty(signals):
-    if not signals:
-        return
-    
-    buys = [s for s in signals if s['signal'] == 'BUY']
-    sells = [s for s in signals if s['signal'] == 'SELL']
-    
-    lines = [f"{len(signals)} Signals (4h Order Flow)\n"]
-    
+def send_nfty(signals, bar_start):
+    buys = [s for s in signals if s["signal"] == "BUY"]
+    sells = [s for s in signals if s["signal"] == "SELL"]
+    label = bar_start.strftime("%d %b %H:%M UTC")
+
+    lines = [f"{len(signals)} سگنلز | {BAR_HOURS}h بار: {label}\n"]
+
     if buys:
         lines.append(f"BUY ({len(buys)}):")
         for s in buys:
-            sym = s['symbol'].replace("USDT", "")
-            entry = s['price']
-            tp = entry * (1 + TARGET_PCT/100)
-            sl = entry * (1 - STOP_PCT/100)
-            lines.append("---")
-            lines.append(f"{sym} | {entry:.4f}")
-            lines.append(f"TP {tp:.4f} | SL {sl:.4f}")
-            lines.append(f"POC {s['poc_position']:.2f} | Delta +{s['delta']/1e6:.0f}M | Ratio {s['ratio']:.2f}")
-    
+            e = s["price"]
+            lines.append("-" * 15)
+            lines.append(f"{s['symbol'].replace('USDT', '')} | ${e:,.6g}")
+            lines.append(f"TP: ${e * (1 + TARGET_PCT / 100):,.6g} | SL: ${e * (1 - STOP_PCT / 100):,.6g}")
+            lines.append(f"POC {s['poc_position']:.2f} | Δ {s['delta'] / 1e6:+.1f}M | R {s['ratio']:.2f}")
+
     if sells:
         lines.append(f"\nSELL ({len(sells)}):")
         for s in sells:
-            sym = s['symbol'].replace("USDT", "")
-            entry = s['price']
-            tp = entry * (1 - TARGET_PCT/100)
-            sl = entry * (1 + STOP_PCT/100)
-            lines.append("---")
-            lines.append(f"{sym} | {entry:.4f}")
-            lines.append(f"TP {tp:.4f} | SL {sl:.4f}")
-            lines.append(f"POC {s['poc_position']:.2f} | Delta {s['delta']/1e6:.0f}M | Ratio {s['ratio']:.2f}")
-    
-    message = "\n".join(lines)
-    
+            e = s["price"]
+            lines.append("-" * 15)
+            lines.append(f"{s['symbol'].replace('USDT', '')} | ${e:,.6g}")
+            lines.append(f"TP: ${e * (1 - TARGET_PCT / 100):,.6g} | SL: ${e * (1 + STOP_PCT / 100):,.6g}")
+            lines.append(f"POC {s['poc_position']:.2f} | Δ {s['delta'] / 1e6:+.1f}M | R {s['ratio']:.2f}")
+
     try:
-        r = requests.post(
+        r = session.post(
             NFTY_URL,
-            data=message.encode('utf-8'),
+            data="\n".join(lines).encode("utf-8"),
             headers={
-                "Title": f"{len(signals)} Signals (4h)",
+                "Title": f"{len(signals)} signals ({BAR_HOURS}h)",
                 "Priority": "high",
                 "Tags": "rotating_light,moneybag",
             },
-            timeout=15
+            timeout=15,
         )
-        print(f"Nfty response: {r.status_code}")
-        if r.status_code == 200:
-            print(f"Nfty sent successfully")
-        else:
-            print(f"Nfty error: {r.text}")
+        print("Nfty بھیجا" if r.status_code == 200 else f"Nfty status {r.status_code}")
     except Exception as e:
-        print(f"Nfty exception: {e}")
+        print(f"Nfty خرابی: {e}")
 
 
 # ============================================================
-# 🎬 MAIN
+# MAIN
 # ============================================================
 def main():
-    start = datetime.now()
+    t0 = time.time()
+    now, bar_start, bar_end = last_closed_bar_window()
+    age_min = (now - bar_end).total_seconds() / 60
+
     print("=" * 60)
-    print(f"{start.strftime('%H:%M:%S')} | 4h | صرف 6 گھنٹے")
+    print(f"{now.strftime('%H:%M:%S')} UTC | بار: {bar_start.strftime('%m-%d %H:%M')} -> {bar_end.strftime('%H:%M')}")
+    print(f"POC>{POC_BULL_MIN}/<{POC_BEAR_MAX} | Δ>{DELTA_MIN_USDT / 1e6:.1f}M USDT | R>{RATIO_BULL_MIN}/<{RATIO_BEAR_MAX}")
+    print(f"بار بند ہوئے {age_min:.0f} منٹ ہوئے")
     print("=" * 60)
-    
+
+    if ENFORCE_FRESH and age_min > MAX_BAR_AGE_MIN:
+        print(f"بار {MAX_BAR_AGE_MIN} منٹ سے پرانا ہے — سگنل رد۔ بار بند ہونے کے فوراً بعد چلائیں۔")
+        return
+
     base_url = get_working_endpoint()
     if not base_url:
-        print("Endpoint نہیں ملا")
+        print("کوئی endpoint کام نہیں کر رہا")
         return
-    print(f"Endpoint: {base_url}\n")
-    
+    print(f"{base_url}\n")
+
     symbols = get_top_symbols(base_url)
     if not symbols:
         return
-    
-    # مرحلہ 1
-    print(f"مرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
-    candidates = []
-    completed = 0
-    
-    with ThreadPoolExecutor(max_workers=THREADS_KLINES) as ex:
-        futures = {ex.submit(quick_scan, base_url, s): s for s in symbols}
-        for f in as_completed(futures):
-            completed += 1
-            try:
-                r = f.result(timeout=15)
-                if r:
-                    candidates.append(r)
-            except:
-                continue
-    
-    print(f"{len(candidates)} کوئنز پاس")
-    
-    if not candidates:
-        print("کوئی کوئن نہیں")
-        return
-    
-    # مرحلہ 2
-    print(f"\nمرحلہ 2: {len(candidates)} کوئنز aggTrades...")
+
     signals = []
-    completed = 0
-    
-    with ThreadPoolExecutor(max_workers=THREADS_AGG) as ex:
-        futures = {ex.submit(analyze_symbol, base_url, c['symbol']): c['symbol'] 
-                   for c in candidates}
+    done = 0
+    with ThreadPoolExecutor(max_workers=THREADS) as ex:
+        futures = {ex.submit(analyze_symbol, base_url, s, p, bar_start, bar_end): s
+                   for s, p in symbols}
         for f in as_completed(futures):
-            completed += 1
+            done += 1
+            if done % 50 == 0:
+                print(f"   {done}/{len(symbols)}")
             try:
-                r = f.result(timeout=30)
-                if r:
-                    signals.append(r)
-                    print(f"{r['symbol']}: {r['signal']} (POC {r['poc_position']:.2f})")
-            except:
+                r = f.result(timeout=60)
+            except Exception:
                 continue
-    
-    elapsed = (datetime.now() - start).total_seconds()
-    print(f"\n{len(symbols)} کوئنز | {len(signals)} سگنلز | {elapsed:.0f}s")
-    
+            if r:
+                signals.append(r)
+                print(f"   {r['symbol']}: {r['signal']} (POC {r['poc_position']:.2f}, "
+                      f"Δ {r['delta'] / 1e6:+.1f}M, R {r['ratio']:.2f})")
+
+    print(f"\n{len(symbols)} کوئنز | {len(signals)} سگنلز | {time.time() - t0:.0f}s")
+
     if signals:
-        send_nfty(signals)
+        send_nfty(signals, bar_start)
     else:
         print("کوئی سگنل نہیں")
 
 
 if __name__ == "__main__":
     main()
+    
