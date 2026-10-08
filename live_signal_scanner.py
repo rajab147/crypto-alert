@@ -1,57 +1,76 @@
 import os
+import json
 import time
 import statistics
 import requests
+import numpy as np
 import pandas as pd
 from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
 
 # ============================================================
-# ⚙️ سیٹنگز (اسٹریٹجی وہی)
+# ⚙️ سیٹنگز — سٹریٹجی (لاجک وہی، صرف SL/سگنل تعداد کنٹرول)
 # ============================================================
 BASE_URL = "https://data-api.binance.vision"
-WINDOW_HOURS = 12            # 12 گھنٹے کی رولنگ ونڈو (آخری مکمل گھنٹے تک)
+WINDOW_HOURS = 12
 
-# POC
 POC_BULL_MIN = 0.65
 POC_BEAR_MAX = 0.30
 
-# Buy/Sell (Contrarian)
 BUY_THRESHOLD = 30
 SELL_THRESHOLD = 70
 MIN_SIGNALS = 4
 
-# Risk
 TARGET_PCT = 0.7
 STOP_PCT = 0.6
-MAX_HOLD_HOURS = 12          # اس کے بعد ٹریڈ بند کرنے کی ہدایت
-FEE_ROUNDTRIP_PCT = 0.2      # صرف نوٹیفکیشن میں فیس کی یاد دہانی کے لیے
+MAX_HOLD_HOURS = 12
+FEE_ROUNDTRIP_PCT = 0.2
 
-# ATR کے مطابق TP/SL (TARGET_PCT اور STOP_PCT اب کم از کم حد ہیں)
-SL_ATR_MULT = 1.5            # SL = 1.5 × اوسط 1h رینج
-TP_ATR_MULT = 1.5            # TP = 1.5 × اوسط 1h رینج
-MAX_DRIFT_FRAC = 0.5         # اگر قیمت سگنل سے SL فاصلے کے 50% سے زیادہ ہل چکی ہو تو سگنل رد
+SL_ATR_MULT = 1.0            # پہلے 1.5 تھا — SL چھوٹا
+TP_ATR_MULT = 1.5
+MAX_SL_PCT = 2.0             # اس سے چوڑے SL والا سگنل رد
+MAX_DRIFT_FRAC = 0.5
 
-# کوئنز
+MAX_SIGNALS_PER_SCAN = 5     # ہر سکین پر صرف بہترین 5
+COOLDOWN_HOURS = 4           # ایک کوائن دوبارہ 4 گھنٹے تک نہیں
+STATE_FILE = "signal_state.json"
+
 MAX_SYMBOLS = 200
 THREADS_KLINES = 10
 THREADS_AGG = 6
-MAX_TRADE_PAGES = 80         # ایک کوئن کے لیے زیادہ سے زیادہ 80,000 ٹریڈز
+MAX_TRADE_PAGES = 80
 MIN_TRADES = 500
-MOVE_FILTER_PCT = 0.5        # مرحلہ 1 فلٹر
+MOVE_FILTER_PCT = 0.5
+
+# ============================================================
+# ⚙️ سیٹنگز — بڑے کوائنز کا آرڈر فلو الرٹ (صرف قیمت)
+# ============================================================
+MAJORS = ["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT",
+          "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "TRXUSDT"]
+
+OF_TF = {
+    "1h": {"minutes": 60,  "min_delta_pct": 6.0},   # delta ≥ 6% of volume
+    "4h": {"minutes": 240, "min_delta_pct": 5.0},
+}
+OF_POC_BULL = 0.60           # POC بار کے اوپری 40% میں
+OF_POC_BEAR = 0.40           # POC بار کے نچلے 40% میں
+OF_CLOSE_BULL = 0.65         # close رینج کے اوپری حصے میں
+OF_CLOSE_BEAR = 0.35
+OF_VOL_MULT = 1.0            # والیوم پچھلے 20 بارز کی اوسط سے کم نہ ہو
 
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
     print("NFTY_URL set نہیں ہے")
     raise SystemExit(1)
+NFTY_OF_URL = os.environ.get("NFTY_OF_URL") or NFTY_URL   # چاہیں تو آرڈر فلو کا الگ ٹاپک
 
 session = requests.Session()
-stats = {"rate_limited": 0, "failed": 0, "too_heavy": 0, "too_few": 0}
+stats = {"rate_limited": 0, "failed": 0, "too_heavy": 0, "too_few": 0, "wide_sl": 0}
 
 
 # ============================================================
-# 🔧 Safe GET (retry + backoff)
+# 🔧 Safe GET
 # ============================================================
 def safe_get(url, params=None, timeout=15, retries=4):
     for attempt in range(retries):
@@ -77,10 +96,16 @@ def utc_naive(ms):
 
 
 def window_bounds():
-    """آخری مکمل گھنٹے پر ختم ہونے والی 12 گھنٹے کی ونڈو (UTC)۔"""
     end = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
     start = end - timedelta(hours=WINDOW_HOURS)
     return start, end
+
+
+def fmt_price(p):
+    if p >= 100: return f"{p:.2f}"
+    if p >= 1: return f"{p:.4f}"
+    if p >= 0.01: return f"{p:.5f}"
+    return f"{p:.8f}"
 
 
 # ============================================================
@@ -133,7 +158,128 @@ def get_all_markets():
 
 
 # ============================================================
-# ⚡ مرحلہ 1: Klines سے تیز فلٹر (صرف مکمل کینڈلز)
+# 📲 Ntfy
+# ============================================================
+def post_ntfy(title, body, tags="rotating_light", url=None):
+    # Title ہیڈر میں صرف ASCII رکھیں؛ ایموجی Tags سے آتے ہیں
+    try:
+        r = requests.post(url or NFTY_URL, data=body.encode("utf-8"),
+                          headers={"Title": title, "Priority": "high", "Tags": tags},
+                          timeout=15)
+        print(f"Ntfy [{title}]: {r.status_code}")
+    except Exception as e:
+        print(f"Ntfy Error: {e}")
+
+
+# ============================================================
+# 🧭 حصہ A: بڑے کوائنز کا آرڈر فلو (1h اور 4h، بلش/بیئریش، صرف قیمت)
+#    ڈیٹا: 1m + native klines (taker buy volume سے اصل delta)
+#    POC: 1m کینڈلز کے والیوم پروفائل سے تخمینہ
+# ============================================================
+def klines(symbol, interval, end_ms, limit):
+    return safe_get(f"{BASE_URL}/api/v3/klines",
+                    params={"symbol": symbol, "interval": interval,
+                            "endTime": end_ms - 1, "limit": limit})
+
+
+def approx_poc(m1_candles, lo, hi, tick):
+    """1m کینڈلز کا والیوم ان کی [low, high] رینج میں برابر بانٹ کر POC نکالیں۔"""
+    if hi <= lo:
+        return lo
+    step = max(tick, (hi - lo) / 60)
+    n = int((hi - lo) / step) + 1
+    prof = np.zeros(n)
+    for k in m1_candles:
+        l, h, v = float(k[3]), float(k[2]), float(k[5])
+        i0 = min(max(int((l - lo) / step), 0), n - 1)
+        i1 = min(max(int((h - lo) / step), 0), n - 1)
+        if i1 < i0:
+            i1 = i0
+        prof[i0:i1 + 1] += v / (i1 - i0 + 1)
+    return lo + (int(prof.argmax()) + 0.5) * step
+
+
+def check_orderflow(symbol, tfs, end_ms, tick):
+    m1 = klines(symbol, "1m", end_ms, 240)
+    if not isinstance(m1, list) or not m1:
+        return []
+    out = []
+    for tf in tfs:
+        cfg = OF_TF[tf]
+        mins = cfg["minutes"]
+        start_ms = end_ms - mins * 60_000
+        hist = klines(symbol, tf, end_ms, 21)
+        if not isinstance(hist, list) or len(hist) < 3:
+            continue
+        bar = hist[-1]
+        if int(bar[0]) != start_ms:
+            continue
+        prev = hist[:-1]
+        avg_vol = statistics.mean(float(k[5]) for k in prev)
+
+        h, l, c = float(bar[2]), float(bar[3]), float(bar[4])
+        v, tb = float(bar[5]), float(bar[9])
+        if v <= 0 or h <= l:
+            continue
+        delta_pct = (2 * tb - v) / v * 100
+        ratio = tb / max(v - tb, 1e-12)
+        close_pos = (c - l) / (h - l)
+
+        sub = [k for k in m1 if int(k[0]) >= start_ms]
+        if len(sub) < mins * 0.9:
+            continue
+        poc = approx_poc(sub, l, h, tick)
+        poc_pos = (poc - l) / (h - l)
+        vol_ok = v >= OF_VOL_MULT * avg_vol
+
+        side = None
+        if (delta_pct >= cfg["min_delta_pct"] and ratio > 1.0 and poc_pos >= OF_POC_BULL
+                and close_pos >= OF_CLOSE_BULL and vol_ok):
+            side = "BULL"
+        elif (delta_pct <= -cfg["min_delta_pct"] and ratio < 1.0 and poc_pos <= OF_POC_BEAR
+                and close_pos <= OF_CLOSE_BEAR and vol_ok):
+            side = "BEAR"
+
+        print(f"   OF {symbol} {tf}: delta {delta_pct:+.1f}% | poc {poc_pos:.2f} | "
+              f"close {close_pos:.2f} | vol×{v / avg_vol:.2f} → {side or '-'}")
+        if side:
+            out.append((tf, side, c))
+    return out
+
+
+def run_orderflow(win_end, ticks):
+    tfs = ["1h"]
+    if win_end.hour % 4 == 0:        # 4h بار UTC 00,04,08,12,16,20 پر بند ہوتی ہے
+        tfs.append("4h")
+    end_ms = int(win_end.timestamp() * 1000)
+    print(f"\nآرڈر فلو: {len(MAJORS)} بڑے کوائنز | ٹائم فریم {tfs}")
+
+    def work(sym):
+        try:
+            return sym, check_orderflow(sym, tfs, end_ms, ticks.get(sym, 0.0))
+        except Exception as e:
+            print(f"   OF {sym} error: {e}")
+            return sym, []
+
+    alerts = {}
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        for sym, res in ex.map(work, MAJORS):
+            for tf, side, price in res:
+                alerts.setdefault((tf, side), []).append((sym, price))
+
+    if not alerts:
+        print("آرڈر فلو: کوئی مضبوط الرٹ نہیں")
+        return
+    for (tf, side), items in sorted(alerts.items()):
+        lines = [f"{s.replace('USDT', '')} {fmt_price(p)}" for s, p in items]
+        name = "Bullish" if side == "BULL" else "Bearish"
+        post_ntfy(f"{tf.upper()} {name} Order Flow", "\n".join(lines),
+                  tags="green_circle" if side == "BULL" else "red_circle",
+                  url=NFTY_OF_URL)
+
+
+# ============================================================
+# ⚡ حصہ B: سٹریٹجی — مرحلہ 1 فلٹر
 # ============================================================
 def quick_scan(symbol, win_end):
     data = safe_get(f"{BASE_URL}/api/v3/klines",
@@ -149,9 +295,6 @@ def quick_scan(symbol, win_end):
     return None
 
 
-# ============================================================
-# 📥 aggTrades — پوری ونڈو، fromId سے (کوئی ٹریڈ مس/ڈبل نہیں)
-# ============================================================
 def load_aggtrades(symbol, win_start, win_end):
     start_ms = int(win_start.timestamp() * 1000)
     end_ms = int(win_end.timestamp() * 1000)
@@ -172,13 +315,10 @@ def load_aggtrades(symbol, win_start, win_end):
             return trades
         params = {"symbol": symbol, "fromId": data[-1]["a"] + 1, "limit": 1000}
 
-    stats["too_heavy"] += 1      # ونڈو پوری نہیں ملی — ادھورے ڈیٹا سے سگنل نہیں دیں گے
+    stats["too_heavy"] += 1
     return None
 
 
-# ============================================================
-# 🎯 Order Flow + Contrarian
-# ============================================================
 def analyze_symbol(symbol, tick_size, win_start, win_end):
     trades = load_aggtrades(symbol, win_start, win_end)
     if trades is None:
@@ -187,7 +327,6 @@ def analyze_symbol(symbol, tick_size, win_start, win_end):
         stats["too_few"] += 1
         return None
 
-    # ہر کوائن کے لیے والیوم اسکیل: درمیانی ٹریڈ ≈ 100 یونٹ
     med_q = statistics.median(float(t["q"]) for t in trades[:5000])
     vol_scale = 100.0 / med_q if med_q > 0 else 1.0
 
@@ -210,7 +349,6 @@ def analyze_symbol(symbol, tick_size, win_start, win_end):
         except Exception:
             continue
 
-    # آخری بار بند کرنے کے لیے ونڈو کے بعد ایک علامتی ٹک (بار ڈیٹا میں شامل نہیں ہوگی)
     try:
         engine.process_tick(
             timestamp=(win_end + timedelta(seconds=1)).replace(tzinfo=None),
@@ -263,6 +401,12 @@ def analyze_symbol(symbol, tick_size, win_start, win_end):
 
     atr_pct = float(((df["high"] - df["low"]) / df["close"]).mean() * 100)
 
+    # SL بہت چوڑا ہو تو سگنل رد
+    if max(STOP_PCT, SL_ATR_MULT * atr_pct) > MAX_SL_PCT:
+        stats["wide_sl"] += 1
+        return None
+
+    score = min(total, 8) + abs(bull_pct - 50) / 50 * 5
     return {
         "symbol": symbol,
         "signal": signal,
@@ -272,12 +416,10 @@ def analyze_symbol(symbol, tick_size, win_start, win_end):
         "bear_count": bear,
         "bull_pct": bull_pct,
         "bars": len(df),
+        "score": score,
     }
 
 
-# ============================================================
-# 💰 TP / SL
-# ============================================================
 def trade_levels(signal, entry, atr_pct):
     tp_pct = max(TARGET_PCT, TP_ATR_MULT * atr_pct)
     sl_pct = max(STOP_PCT, SL_ATR_MULT * atr_pct)
@@ -291,7 +433,6 @@ def trade_levels(signal, entry, atr_pct):
 
 
 def apply_live_prices(signals):
-    """انٹری کے لیے موجودہ قیمت لیں؛ جو سگنل پہلے ہی بہت ہل چکا ہو اسے رد کریں۔"""
     data = safe_get(f"{BASE_URL}/api/v3/ticker/price")
     if not isinstance(data, list):
         print("⚠️ live قیمتیں نہیں ملیں — پرانی close استعمال ہو رہی ہے")
@@ -314,73 +455,54 @@ def apply_live_prices(signals):
     return fresh
 
 
-def fmt_price(p):
-    if p >= 100: return f"{p:.2f}"
-    if p >= 1: return f"{p:.4f}"
-    if p >= 0.01: return f"{p:.5f}"
-    return f"{p:.8f}"
-
-
-# ============================================================
-# 📲 Ntfy (4096 بائٹ حد کے لیے ٹکڑوں میں)
-# ============================================================
-def post_ntfy(title, body):
+# ---------- cooldown (state فائل؛ محفوظ نہ ہو تو بھی کوڈ چلتا ہے) ----------
+def load_state():
     try:
-        r = requests.post(NFTY_URL, data=body.encode("utf-8"),
-                          headers={"Title": title, "Priority": "high",
-                                   "Tags": "rotating_light,moneybag"},
-                          timeout=15)
-        print(f"Ntfy: {r.status_code}")
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_state(st):
+    try:
+        with open(STATE_FILE, "w") as f:
+            json.dump(st, f)
     except Exception as e:
-        print(f"Ntfy Error: {e}")
+        print(f"state save error: {e}")
 
 
-def send_nfty(signals):
-    if not signals:
-        return
+def in_cooldown(st, sym, now):
+    t = st.get(sym)
+    if not t:
+        return False
+    try:
+        return now - datetime.fromisoformat(t) < timedelta(hours=COOLDOWN_HOURS)
+    except Exception:
+        return False
 
-    blocks = []
-    for s in sorted(signals, key=lambda x: (x["signal"], x["symbol"])):
+
+def send_signals(signals):
+    """ہر سگنل الگ نوٹیفکیشن، صاف فارمیٹ میں۔"""
+    for s in signals:
         sym = s["symbol"].replace("USDT", "")
         tp, sl, tp_pct, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
-        blocks.append(
-            f"{s['signal']} {sym} | {fmt_price(s['price'])}\n"
-            f"TP {fmt_price(tp)} ({tp_pct:.1f}%) | SL {fmt_price(sl)} ({sl_pct:.1f}%)\n"
-            f"Bull% {s['bull_pct']:.0f} | {s['bull_count']}B/{s['bear_count']}S"
+        buy = s["signal"] == "BUY"
+        sign_tp, sign_sl = ("+", "-") if buy else ("-", "+")
+        body = (
+            f"Entry: {fmt_price(s['price'])}\n"
+            f"TP: {fmt_price(tp)} ({sign_tp}{tp_pct:.1f}%)\n"
+            f"SL: {fmt_price(sl)} ({sign_sl}{sl_pct:.1f}%)\n"
+            f"Bull {s['bull_pct']:.0f}% | {s['bull_count']}B/{s['bear_count']}S\n"
+            f"Max hold {MAX_HOLD_HOURS}h | fees ~{FEE_ROUNDTRIP_PCT}%"
         )
-
-    footer = f"\nMax hold {MAX_HOLD_HOURS}h | fees ~{FEE_ROUNDTRIP_PCT}% roundtrip"
-
-    chunks, cur = [], ""
-    for b in blocks:
-        if len(cur.encode("utf-8")) + len(b.encode("utf-8")) > 3500:
-            chunks.append(cur)
-            cur = ""
-        cur += b + "\n---\n"
-    if cur:
-        chunks.append(cur)
-
-    for i, c in enumerate(chunks, 1):
-        title = f"{len(signals)} Signals (1h)" + (f" [{i}/{len(chunks)}]" if len(chunks) > 1 else "")
-        post_ntfy(title, c + (footer if i == len(chunks) else ""))
+        post_ntfy(f"{s['signal']} {sym} @ {fmt_price(s['price'])}", body,
+                  tags="green_circle,moneybag" if buy else "red_circle,moneybag")
+        time.sleep(0.3)
 
 
-# ============================================================
-# 🎬 MAIN
-# ============================================================
-def main():
-    start = datetime.now()
-    win_start, win_end = window_bounds()
-    print("=" * 60)
-    print(f"{start.strftime('%H:%M:%S')} | 1h | {WINDOW_HOURS}h ونڈو "
-          f"{win_start:%m-%d %H:%M} → {win_end:%m-%d %H:%M} UTC")
-    print("=" * 60)
-
-    symbols, ticks = get_all_markets()
-    if not symbols:
-        print("مارکیٹس نہیں ملیں")
-        return
-
+def run_strategy(symbols, ticks, win_start, win_end):
+    symbols = [s for s in symbols if s not in MAJORS]   # بڑے کوائنز صرف آرڈر فلو الرٹ
     print(f"\nمرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
     candidates = []
     with ThreadPoolExecutor(max_workers=THREADS_KLINES) as ex:
@@ -415,18 +537,52 @@ def main():
             except Exception as e:
                 print(f"   {futures[f]} error: {e}")
 
-    elapsed = (datetime.now() - start).total_seconds()
-    print(f"\n{len(symbols)} کوئنز | {len(signals)} سگنلز | {elapsed:.0f}s")
-    print(f"اعداد: {stats}")
-
+    print(f"{len(signals)} سگنلز (فلٹر سے پہلے) | اعداد: {stats}")
     signals = apply_live_prices(signals) if signals else signals
 
-    if signals:
-        send_nfty(signals)
-    else:
+    # cooldown + بہترین N
+    now = datetime.now(timezone.utc)
+    state = load_state()
+    signals = [s for s in signals if not in_cooldown(state, s["symbol"], now)]
+    signals.sort(key=lambda s: s["score"], reverse=True)
+    signals = signals[:MAX_SIGNALS_PER_SCAN]
+
+    if not signals:
         print("کوئی سگنل نہیں — اگلی بار")
+        return
+    send_signals(signals)
+    for s in signals:
+        state[s["symbol"]] = now.isoformat()
+    save_state(state)
+
+
+# ============================================================
+# 🎬 MAIN
+# ============================================================
+def main():
+    start = datetime.now()
+    win_start, win_end = window_bounds()
+    print("=" * 60)
+    print(f"{start.strftime('%H:%M:%S')} | {WINDOW_HOURS}h ونڈو "
+          f"{win_start:%m-%d %H:%M} → {win_end:%m-%d %H:%M} UTC")
+    print("=" * 60)
+
+    symbols, ticks = get_all_markets()
+    if not symbols:
+        print("مارکیٹس نہیں ملیں")
+        return
+
+    # 1) آرڈر فلو الرٹس پہلے (بار بند ہوتے ہی فوراً)
+    try:
+        run_orderflow(win_end, ticks)
+    except Exception as e:
+        print(f"آرڈر فلو error: {e}")
+
+    # 2) باقی کوائنز کی سٹریٹجی
+    run_strategy(symbols, ticks, win_start, win_end)
+    print(f"\nمکمل: {(datetime.now() - start).total_seconds():.0f}s")
 
 
 if __name__ == "__main__":
     main()
-            
+    
