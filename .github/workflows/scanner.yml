@@ -43,7 +43,7 @@ jobs:
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python live_signal_scanner.py
+        run: python scanner.py
 
       - name: Save state
         if: always()
@@ -53,4 +53,3 @@ jobs:
             signal_state.json
             orderflow_state.json
           key: scanner-state-${{ github.run_id }}
-run: python scanner.py
