@@ -574,9 +574,8 @@ def apply_live_prices(signals):
         if not p:
             fresh.append(s)
             continue
- _, _, _, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
-    
-drift = (p - s["price"]) / s["price"] * 100
+        _, _, _, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
+    drift = (p - s["price"]) / s["price"] * 100
         if abs(drift) >= MAX_DRIFT_FRAC * sl_pct:
             print(f"   {s['symbol']}: پرانا سگنل (قیمت {drift:+.2f}% ہل چکی) — رد")
             continue
