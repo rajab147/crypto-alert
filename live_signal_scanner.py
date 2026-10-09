@@ -574,5 +574,128 @@ def apply_live_prices(signals):
         if not p:
             fresh.append(s)
             continue
-        _, _, _, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
+ _, _, _, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
     
+drift = (p - s["price"]) / s["price"] * 100
+        if abs(drift) >= MAX_DRIFT_FRAC * sl_pct:
+            print(f"   {s['symbol']}: پرانا سگنل (قیمت {drift:+.2f}% ہل چکی) — رد")
+            continue
+        s["price"] = p
+        fresh.append(s)
+    return fresh
+
+
+def in_cooldown(st, sym, now):
+    t = st.get(sym)
+    if not t:
+        return False
+    try:
+        return now - datetime.fromisoformat(t) < timedelta(hours=COOLDOWN_HOURS)
+    except Exception:
+        return False
+
+
+def send_signals(signals):
+    for s in signals:
+        sym = s["symbol"].replace("USDT", "")
+        tp, sl, tp_pct, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
+        buy = s["signal"] == "BUY"
+        sign_tp, sign_sl = ("+", "-") if buy else ("-", "+")
+        body = (
+            f"Entry: {fmt_price(s['price'])}\n"
+            f"TP: {fmt_price(tp)} ({sign_tp}{tp_pct:.1f}%)\n"
+            f"SL: {fmt_price(sl)} ({sign_sl}{sl_pct:.1f}%)\n"
+            f"Bull {s['bull_pct']:.0f}% | {s['bull_count']}B/{s['bear_count']}S\n"
+            f"Max hold {MAX_HOLD_HOURS}h | fees ~{FEE_ROUNDTRIP_PCT}%"
+        )
+        post_ntfy(f"{s['signal']} {sym} @ {fmt_price(s['price'])}", body,
+                  tags="green_circle,moneybag" if buy else "red_circle,moneybag")
+        time.sleep(0.3)
+
+
+def run_strategy(symbols, ticks, of_set, win_start, win_end):
+    if B_EXCLUDE_OF_COINS:
+        symbols = [s for s in symbols if s not in of_set]
+    print(f"\nمرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
+    candidates = []
+    with ThreadPoolExecutor(max_workers=THREADS_KLINES) as ex:
+        futures = [ex.submit(quick_scan, s, win_end) for s in symbols]
+        for i, f in enumerate(as_completed(futures), 1):
+            if i % 100 == 0:
+                print(f"   {i}/{len(symbols)}")
+            try:
+                r = f.result()
+                if r:
+                    candidates.append(r)
+            except Exception as e:
+                print(f"   scan error: {e}")
+    print(f"{len(candidates)} کوئنز پاس")
+    if not candidates:
+        print("کوئی کوئن نہیں")
+        return
+
+    print(f"\nمرحلہ 2: {len(candidates)} کوئنز aggTrades...")
+    signals = []
+    with ThreadPoolExecutor(max_workers=THREADS_AGG) as ex:
+        futures = {ex.submit(analyze_symbol, c["symbol"], ticks[c["symbol"]],
+                             win_start, win_end): c["symbol"] for c in candidates}
+        for i, f in enumerate(as_completed(futures), 1):
+            if i % 10 == 0:
+                print(f"   {i}/{len(candidates)}")
+            try:
+                r = f.result()
+                if r:
+                    signals.append(r)
+                    print(f"   {r['symbol']}: {r['signal']} ({r['bull_pct']:.0f}%)")
+            except Exception as e:
+                print(f"   {futures[f]} error: {e}")
+
+    print(f"{len(signals)} سگنلز (فلٹر سے پہلے) | اعداد: {stats}")
+    signals = apply_live_prices(signals) if signals else signals
+
+    now = datetime.now(timezone.utc)
+    state = load_json(STATE_FILE)
+    signals = [s for s in signals if not in_cooldown(state, s["symbol"], now)]
+    signals.sort(key=lambda s: s["score"], reverse=True)
+    signals = signals[:MAX_SIGNALS_PER_SCAN]
+
+    if not signals:
+        print("کوئی سگنل نہیں — اگلی بار")
+        return
+    send_signals(signals)
+    for s in signals:
+        state[s["symbol"]] = now.isoformat()
+    save_json(STATE_FILE, state)
+
+
+# ============================================================
+# 🎬 MAIN
+# ============================================================
+def main():
+    start = datetime.now()
+    win_start, win_end = window_bounds()
+    print("=" * 60)
+    print(f"{start.strftime('%H:%M:%S')} | {WINDOW_HOURS}h ونڈو "
+          f"{win_start:%m-%d %H:%M} → {win_end:%m-%d %H:%M} UTC (آخری بند 15m)")
+    print("=" * 60)
+
+    symbols, ticks = get_all_markets()
+    if not symbols:
+        print("مارکیٹس نہیں ملیں")
+        return
+
+    of_symbols = symbols[:OF_COIN_COUNT]
+
+    # 1) آرڈر فلو الرٹس (جاری 1h/4h بار، کلوزنگ کی شرط نہیں)
+    try:
+        run_orderflow(of_symbols)
+    except Exception as e:
+        print(f"آرڈر فلو error: {e}")
+
+    # 2) TP/SL سٹریٹجی (15m کینڈل بند ہونے پر)
+    run_strategy(symbols, ticks, set(of_symbols), win_start, win_end)
+    print(f"\nمکمل: {(datetime.now() - start).total_seconds():.0f}s")
+
+
+if __name__ == "__main__":
+    main()
