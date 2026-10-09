@@ -43,7 +43,7 @@ jobs:
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python scanner.py
+        run:   python scanner-1.py
 
       - name: Save state
         if: always()
