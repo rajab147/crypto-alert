@@ -40,7 +40,7 @@ jobs:
           key: scanner-state-${{ github.run_id }}
           restore-keys: scanner-state-
 
-      - name: Run Scanner
+      - name:  python scanner_tracker.py
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
