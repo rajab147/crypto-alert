@@ -15,7 +15,7 @@ from footprint_analyzer import FootprintEngine, FootprintEngineConfig, Aggregati
 #    ونڈو کا اختتام = آخری بند 15m کینڈل؛ موجودہ بنتی ہوئی 1h بار بھی شامل
 # ============================================================
 BASE_URL = "https://data-api.binance.vision"
-WINDOW_HOURS = 8
+WINDOW_HOURS = 10
 SCAN_MINUTES = 15
 
 POC_BULL_MIN = 0.65
@@ -27,7 +27,7 @@ MIN_SIGNALS = 4
 
 TARGET_PCT = 0.7
 STOP_PCT = 0.6
-MAX_HOLD_HOURS = 8
+MAX_HOLD_HOURS = 10
 FEE_ROUNDTRIP_PCT = 0.2
 
 SL_ATR_MULT = 2.0
