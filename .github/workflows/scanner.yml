@@ -40,11 +40,11 @@ jobs:
           key: scanner-state-${{ github.run_id }}
           restore-keys: scanner-state-
 
-      - name:  python scanner_tracker.py
+      - name: Run Scanner
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python   OrderFlow_Scanner_Tracker (1).py
+        run: python "OrderFlow_Scanner_Tracker (1).py"
 
       - name: Save state
         if: always()
