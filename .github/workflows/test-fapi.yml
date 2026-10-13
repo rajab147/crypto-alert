@@ -7,4 +7,4 @@ jobs:
     steps:
       - name: Ping futures API
         run: |
-          curl -s -o /dev/null -w "%{http_code}\n" "https://fapi.binance.com/fapi/v1/ping"
+          curl -s -o /dev/null -w "%{http_code}\n" "https://fapi.Bybit.com/fapi/v1/ping"
