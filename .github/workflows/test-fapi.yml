@@ -5,12 +5,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Test exchanges
+      - name: Raw responses
         run: |
-          check() { echo "$1 -> $(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$2")"; }
-          check bybit   "https://api.bybit.com/v5/market/time"
-          check okx     "https://www.okx.com/api/v5/public/time"
-          check bitget  "https://api.bitget.com/api/v2/public/time"
-          check gate    "https://api.gateio.ws/api/v4/futures/usdt/contracts/BTC_USDT"
-          check mexc    "https://contract.mexc.com/api/v1/contract/ping"
-          check hyper   "https://api.hyperliquid.xyz/info"
+          show() { echo; echo "=== $1"; curl -s --max-time 15 "$2" | head -c 500; echo; }
+          show okx_kline    "https://www.okx.com/api/v5/market/candles?instId=BTC-USDT-SWAP&bar=1H&limit=2"
+          show okx_trades   "https://www.okx.com/api/v5/market/trades?instId=BTC-USDT-SWAP&limit=3"
+          show okx_taker    "https://www.okx.com/api/v5/rubik/stat/taker-volume?ccy=BTC&instType=CONTRACTS&period=1H"
+          show bitget_kline  "https://api.bitget.com/api/v2/mix/market/candles?symbol=BTCUSDT&productType=USDT-FUTURES&granularity=1H&limit=2"
+          show bitget_trades "https://api.bitget.com/api/v2/mix/market/fills?symbol=BTCUSDT&productType=USDT-FUTURES&limit=3"
+          show gate_kline   "https://api.gateio.ws/api/v4/futures/usdt/candlesticks?contract=BTC_USDT&interval=1h&limit=2"
+          show gate_trades  "https://api.gateio.ws/api/v4/futures/usdt/trades?contract=BTC_USDT&limit=3"
