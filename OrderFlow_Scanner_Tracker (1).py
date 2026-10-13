@@ -4,68 +4,27 @@ import time
 import statistics
 import requests
 import numpy as np
-import pandas as pd
-from datetime import datetime, timezone, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from footprint_analyzer import FootprintEngine, FootprintEngineConfig, AggregationType
+from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 
 # ============================================================
-# ⚙️ سیٹنگز — حصہ B: TP/SL والی سٹریٹجی (1h بارز، 12h ونڈو)
-#    نیا: سکین ہر 15 منٹ کی کینڈل بند ہونے پر (شیڈیولر ہر 15 منٹ پر چلائیں)
-#    ونڈو کا اختتام = آخری بند 15m کینڈل؛ موجودہ بنتی ہوئی 1h بار بھی شامل
+# ⚙️ سیٹنگز — آرڈر فلو الرٹ (ٹاپ 100 والیوم کوائنز: 1h، 4h، ڈیلی)
+#    کینڈل کلوزنگ کی شرط نہیں: جاری بار میں سیٹ اپ بنتے ہی الرٹ
+#    ڈیٹا: Binance سپاٹ (data-api.binance.vision)
 # ============================================================
 BASE_URL = "https://data-api.binance.vision"
-WINDOW_HOURS = 10
-SCAN_MINUTES = 15
 
-POC_BULL_MIN = 0.65
-POC_BEAR_MAX = 0.30
+OF_COIN_COUNT = 100                 # 24h والیوم کی رینک میں پہلے اتنے کوائنز
+DAILY_MIN_QUOTE_VOL = 5_000_000     # ڈیلی کے لیے کم از کم 24h والیوم (USDT)؛ اس سے کم والے ڈیلی سے باہر
 
-BUY_THRESHOLD = 30
-SELL_THRESHOLD = 70
-MIN_SIGNALS = 4
-
-TARGET_PCT = 0.7
-STOP_PCT = 0.6
-MAX_HOLD_HOURS = 10
-FEE_ROUNDTRIP_PCT = 0.2
-
-SL_ATR_MULT = 2.0
-TP_ATR_MULT = 2.5
-MAX_SL_PCT = 4.0
-MAX_DRIFT_FRAC = 0.5
-
-MAX_SIGNALS_PER_SCAN = 5
-COOLDOWN_HOURS = 4
-STATE_FILE = "signal_state.json"
-
-# ٹریڈ ٹریکر: ہر بھیجے گئے سگنل کو کھلی ٹریڈ کے طور پر محفوظ کریں اور TP/SL/Timeout کا نتیجہ بتائیں
-TRADES_FILE = "trades_state.json"
-MAX_CLOSED_KEEP = 500       # فائل میں زیادہ سے زیادہ اتنی بند ٹریڈز رکھیں
-SUMMARY_LAST_N = 50         # win rate کے خلاصے میں آخری اتنی ٹریڈز
-BOTH_HIT_RESULT = "SL"      # ایک ہی 1m کینڈل میں TP اور SL دونوں چھو جائیں تو محتاط فرض: SL
-
-MAX_SYMBOLS = 200
-THREADS_KLINES = 10
-THREADS_AGG = 6
-MAX_TRADE_PAGES = 80
-MIN_TRADES = 500
-MOVE_FILTER_PCT = 0.5
-
-# جو کوائنز آرڈر فلو میں آ گئے وہ حصہ B سے نکال دیں (False کریں تو دونوں میں سکین ہوں گے)
-B_EXCLUDE_OF_COINS = True
-
-# ============================================================
-# ⚙️ سیٹنگز — حصہ A: آرڈر فلو الرٹ (ٹاپ والیوم کوائنز، 1h اور 4h)
-#    کینڈل کلوزنگ کی شرط نہیں: جاری بار میں سیٹ اپ بنتے ہی الرٹ
-# ============================================================
-OF_COIN_COUNT = 60
+# min_progress: بار کا کم از کم کتنا وقت گزرنے کے بعد الرٹ (ورنہ جھوٹے الرٹ)
+# sub: footprint تخمینے کے لیے چھوٹی کینڈل؛ verify: aggTrades سے اصل تصدیق
 OF_TF = {
-    "1h": {"minutes": 60,  "min_delta_pct": 6.0},
-    "4h": {"minutes": 240, "min_delta_pct": 5.0},
+    "1h": {"minutes": 60,   "min_delta_pct": 6.0, "min_progress": 0.50, "sub": "1m", "verify": True},
+    "4h": {"minutes": 240,  "min_delta_pct": 5.0, "min_progress": 0.25, "sub": "1m", "verify": True},
+    "1d": {"minutes": 1440, "min_delta_pct": 4.0, "min_progress": 0.25, "sub": "5m", "verify": False},
 }
-OF_MIN_PROGRESS = 0.25      # بار کا کم از کم 25% وقت گزر چکا ہو (ورنہ جھوٹے الرٹ)
-OF_BUCKETS = 40             # footprint تخمینے کے لیے قیمت کے خانے
+OF_BUCKETS = 40             # footprint کے لیے قیمت کے خانے
 OF_LOOKBACK = 12            # sweep / divergence کے لیے پچھلی بارز
 
 OF_POC_BULL = 0.60
@@ -83,6 +42,26 @@ OF_EXH_THIN = 0.05          # Exhaustion: انتہا کے 20% حصے میں کل
 OF_DIV_MIN = 0.5            # Divergence: CVD کا فرق اوسط |delta| کا کم از کم 50%
 OF_STATE_FILE = "orderflow_state.json"
 
+# aggTrades سے اصل تصدیق (صرف 1h اور 4h، اور صرف ان کوائنز پر جن پر تخمینے سے سیٹ اپ بنا)
+OF_MAX_TRADE_PAGES = 50     # زیادہ سے زیادہ 50 صفحے × 1000 ٹریڈز؛ اس سے بھاری ہو تو "est" ہی رہے
+OF_MIN_REAL_TRADES = 200    # اس سے کم ٹریڈز پر اصل footprint بے معنی
+OF_VOL_MATCH = (0.85, 1.25)  # ٹریڈز کا کل والیوم kline والیوم کے قریب ہو، ورنہ ڈیٹا ادھورا
+
+# ============================================================
+# ⚙️ سیٹنگز — ٹریکر (پیمائش: MFE / MAE / مقررہ وقت کے بعد سمت)
+#    TP/SL نہیں؛ مقصد یہ ناپنا ہے کہ ہر سیٹ اپ اور ٹائم فریم کتنا کام کرتا ہے
+# ============================================================
+TRADES_FILE = "trades_state.json"
+OF_TRACK = {
+    "1h": {"hours": 6,  "step": "1m",  "step_ms": 60_000},
+    "4h": {"hours": 24, "step": "5m",  "step_ms": 300_000},
+    "1d": {"hours": 72, "step": "15m", "step_ms": 900_000},
+}
+MAX_CLOSED_KEEP = 500       # فائل میں زیادہ سے زیادہ اتنی بند ٹریڈز
+SUMMARY_LAST_N = 30         # خلاصے میں ہر گروپ کی آخری اتنی ٹریڈز
+SMALL_SAMPLE = 10           # اس سے کم نمونے پر "*" (کم بھروسہ)
+NTFY_CHUNK = 30             # ایک پیغام میں زیادہ سے زیادہ اتنے کوائنز
+
 NFTY_URL = os.environ.get("NFTY_URL")
 if not NFTY_URL:
     print("NFTY_URL set نہیں ہے")
@@ -90,7 +69,8 @@ if not NFTY_URL:
 NFTY_OF_URL = os.environ.get("NFTY_OF_URL") or NFTY_URL
 
 session = requests.Session()
-stats = {"rate_limited": 0, "failed": 0, "too_heavy": 0, "too_few": 0, "wide_sl": 0}
+stats = {"rate_limited": 0, "failed": 0, "too_heavy": 0, "mismatch": 0,
+         "confirmed": 0, "rejected": 0, "unverified": 0}
 
 
 # ============================================================
@@ -113,22 +93,6 @@ def safe_get(url, params=None, timeout=15, retries=4):
             time.sleep(1 + attempt)
     stats["failed"] += 1
     return None
-
-
-def utc_naive(ms):
-    return datetime.fromtimestamp(ms / 1000, tz=timezone.utc).replace(tzinfo=None)
-
-
-def window_bounds():
-    """آخری بند 15m کینڈل تک؛ 10 گھنٹے کی ونڈو؛ آخری دستیاب 15m حد تک۔"""
-    now = datetime.now(timezone.utc)
-    end = now.replace(minute=(now.minute // SCAN_MINUTES) * SCAN_MINUTES,
-                      second=0, microsecond=0)
-    if end.minute == 0:
-        start = end - timedelta(hours=WINDOW_HOURS)
-    else:
-        start = end.replace(minute=0) - timedelta(hours=WINDOW_HOURS - 1)
-    return start, end
 
 
 def fmt_price(p):
@@ -154,26 +118,30 @@ def save_json(path, obj):
         print(f"state save error ({path}): {e}")
 
 
-def get_klines(symbol, interval, limit, end_ms=None):
+def get_klines(symbol, interval, limit, start_ms=None, end_ms=None):
     params = {"symbol": symbol, "interval": interval, "limit": limit}
-    if end_ms:
-        params["endTime"] = end_ms
+    if start_ms is not None:
+        params["startTime"] = int(start_ms)
+    if end_ms is not None:
+        params["endTime"] = int(end_ms)
     return safe_get(f"{BASE_URL}/api/v3/klines", params=params)
 
 
 # ============================================================
-# 📋 کوئنز + tick size
+# 📋 ٹاپ کوائنز (24h والیوم کی رینک)
 # ============================================================
-def get_all_markets():
+def get_top_markets():
+    """واپسی: (سمبلز رینک کے مطابق, {سمبل: 24h quote والیوم}, {سمبل: 24h ٹریڈز کی تعداد})"""
     print("Binance مارکیٹس...")
     data = safe_get(f"{BASE_URL}/api/v3/exchangeInfo", timeout=30)
     if not data or "symbols" not in data:
-        return [], {}
+        return [], {}, {}
 
     skip = {"USDCUSDT", "BUSDUSDT", "TUSDUSDT", "FDUSDUSDT", "DAIUSDT",
-            "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY", "USDTBIDR"}
+            "EURUSDT", "GBPUSDT", "AEURUSDT", "USDTTRY", "USDTBIDR",
+            "USD1USDT", "USDPUSDT", "USDEUSDT", "RLUSDUSDT", "PYUSDUSDT"}  # stablecoin جوڑے
 
-    ticks = {}
+    valid = set()
     for s in data["symbols"]:
         if s.get("quoteAsset") != "USDT" or s.get("status") != "TRADING":
             continue
@@ -183,41 +151,38 @@ def get_all_markets():
         base = s.get("baseAsset", "")
         if base.endswith(("UP", "DOWN", "BULL", "BEAR")) and base not in ("JUP",):
             continue
-        tick = None
-        for f in s.get("filters", []):
-            if f.get("filterType") == "PRICE_FILTER":
-                tick = float(f["tickSize"])
-        if tick and tick > 0:
-            ticks[sym] = tick
-
-    print(f"کل USDT مارکیٹس: {len(ticks)}")
+        valid.add(sym)
+    print(f"کل USDT مارکیٹس: {len(valid)}")
 
     ticker = safe_get(f"{BASE_URL}/api/v3/ticker/24hr", timeout=30)
     if not isinstance(ticker, list):
-        return list(ticks)[:MAX_SYMBOLS], ticks
+        print("ticker نہیں ملا — رینکنگ کے بغیر آگے نہیں بڑھ سکتے")
+        return [], {}, {}
 
-    volumes = []
+    rows = []
     for t in ticker:
         sym = t.get("symbol")
-        if sym in ticks:
+        if sym in valid:
             try:
-                volumes.append((sym, float(t.get("quoteVolume", 0))))
+                rows.append((sym, float(t.get("quoteVolume", 0)), int(t.get("count", 0))))
             except (TypeError, ValueError):
                 continue
-    volumes.sort(key=lambda x: x[1], reverse=True)
-    result = [s for s, _ in volumes[:MAX_SYMBOLS]]
-    print(f"{len(result)} کوئنز منتخب")
-    return result, ticks
+    rows.sort(key=lambda x: x[1], reverse=True)
+    rows = rows[:OF_COIN_COUNT]
+    print(f"{len(rows)} کوئنز منتخب")
+    return ([r[0] for r in rows],
+            {r[0]: r[1] for r in rows},
+            {r[0]: r[2] for r in rows})
 
 
 # ============================================================
 # 📲 Ntfy
 # ============================================================
-def post_ntfy(title, body, tags="rotating_light", url=None):
+def post_ntfy(title, body, tags="rotating_light", url=None, priority="high"):
     # Title ہیڈر میں صرف ASCII؛ ایموجی Tags سے آتے ہیں
     try:
         r = requests.post(url or NFTY_URL, data=body.encode("utf-8"),
-                          headers={"Title": title, "Priority": "high", "Tags": tags},
+                          headers={"Title": title, "Priority": priority, "Tags": tags},
                           timeout=15)
         print(f"Ntfy [{title}]: {r.status_code}")
         return r.ok
@@ -227,12 +192,14 @@ def post_ntfy(title, body, tags="rotating_light", url=None):
 
 
 # ============================================================
-# 🧭 حصہ A: آرڈر فلو (جاری 1h اور 4h بار، کلوزنگ کی شرط کے بغیر)
-#    ڈیٹا: 1m klines (taker buy volume سے اصل delta) + tf klines
-#    footprint تخمینہ: ہر 1m کینڈل کا buy/sell والیوم اس کی [low, high] میں برابر بانٹا جاتا ہے
+# 🧭 آرڈر فلو (جاری 1h، 4h اور ڈیلی بار، کلوزنگ کی شرط کے بغیر)
+#    ڈیٹا: چھوٹی klines (taker buy volume سے اصل delta) + ٹائم فریم klines
+#    footprint: پہلے تخمینہ (ہر چھوٹی کینڈل کا والیوم اس کی [low, high] میں برابر)
+#    1h/4h: تخمینے سے سیٹ اپ بنے تو aggTrades سے اصل footprint بنا کر دوبارہ جانچ
 #    سیٹ اپس: Delta+POC، Absorption، Sweep، Exhaustion، Divergence (CVD)، Stacked Imbalance
 # ============================================================
 def build_profile(sub, lo, hi, nb):
+    """تخمینی footprint (klines سے)۔"""
     step = (hi - lo) / nb
     buy = np.zeros(nb)
     sell = np.zeros(nb)
@@ -248,6 +215,19 @@ def build_profile(sub, lo, hi, nb):
     return buy, sell
 
 
+def build_profile_real(trades, lo, hi, nb):
+    """اصل footprint (aggTrades سے): m=True کا مطلب خریدار maker، یعنی جارح فروخت۔"""
+    step = (hi - lo) / nb
+    n = len(trades)
+    p = np.fromiter((float(t["p"]) for t in trades), float, n)
+    q = np.fromiter((float(t["q"]) for t in trades), float, n)
+    is_buy = np.fromiter((not t["m"] for t in trades), bool, n)
+    idx = np.clip(((p - lo) / step).astype(int), 0, nb - 1)
+    buy = np.bincount(idx[is_buy], weights=q[is_buy], minlength=nb)
+    sell = np.bincount(idx[~is_buy], weights=q[~is_buy], minlength=nb)
+    return buy, sell
+
+
 def has_run(mask, n):
     run = 0
     for m in mask:
@@ -257,8 +237,9 @@ def has_run(mask, n):
     return False
 
 
-def eval_setups(hist, sub, tf, progress):
-    """جاری بار (hist[-1]) پر تمام سیٹ اپس چیک کریں۔ واپسی: {"BULL": [...], "BEAR": [...]}"""
+def eval_setups(hist, profile, tf, progress):
+    """جاری بار (hist[-1]) پر تمام سیٹ اپس چیک کریں۔ profile = (buy, sell) خانوں کے لحاظ سے۔
+    واپسی: ({"BULL": [...], "BEAR": [...]}, info) یا None"""
     cfg = OF_TF[tf]
     bar, prev = hist[-1], hist[:-1]
     o, h, l, c = float(bar[1]), float(bar[2]), float(bar[3]), float(bar[4])
@@ -277,7 +258,7 @@ def eval_setups(hist, sub, tf, progress):
     ratio = tb / max(v - tb, 1e-12)
     close_pos = (c - l) / (h - l)
 
-    buy, sell = build_profile(sub, l, h, OF_BUCKETS)
+    buy, sell = profile
     tot = buy + sell
     if tot.sum() <= 0:
         return None
@@ -350,101 +331,11 @@ def eval_setups(hist, sub, tf, progress):
     return found, info
 
 
-def check_orderflow(symbol, now_ms):
-    m1 = get_klines(symbol, "1m", 250)
-    if not isinstance(m1, list) or not m1:
-        return []
-    out = []
-    for tf, cfg in OF_TF.items():
-        mins = cfg["minutes"]
-        ms = mins * 60_000
-        start_ms = now_ms // ms * ms
-        progress = (now_ms - start_ms) / ms
-        if progress < OF_MIN_PROGRESS:
-            continue
-        hist = get_klines(symbol, tf, 21)
-        if not isinstance(hist, list) or len(hist) < 4:
-            continue
-        if int(hist[-1][0]) != start_ms:
-            continue
-        sub = [k for k in m1 if int(k[0]) >= start_ms]
-        if len(sub) < max(5, int(progress * mins * 0.9)):
-            continue
-        res = eval_setups(hist, sub, tf, progress)
-        if not res:
-            continue
-        found, info = res
-        tags = [f"{sd}:{'+'.join(nm)}" for sd, nm in found.items() if nm]
-        print(f"   OF {symbol} {tf} ({progress:.0%}): {info} → {', '.join(tags) or '-'}")
-        for side, names in found.items():
-            if names:
-                out.append((tf, side, float(hist[-1][4]), names, start_ms))
-    return out
-
-
-def run_orderflow(of_symbols):
-    now_ms = int(time.time() * 1000)
-    print(f"\nآرڈر فلو: {len(of_symbols)} کوائنز | ٹائم فریم {list(OF_TF)}")
-
-    cutoff = now_ms - 2 * 24 * 3600 * 1000
-    state = {k: v for k, v in load_json(OF_STATE_FILE).items()
-             if isinstance(v, (int, float)) and v >= cutoff}
-
-    def work(sym):
-        try:
-            return sym, check_orderflow(sym, now_ms)
-        except Exception as e:
-            print(f"   OF {sym} error: {e}")
-            return sym, []
-
-    alerts = {}
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        for sym, res in ex.map(work, of_symbols):
-            for tf, side, price, names, start_ms in res:
-                new = [n for n in names if f"{sym}|{tf}|{side}|{start_ms}|{n}" not in state]
-                if new:
-                    alerts.setdefault((tf, side), []).append((sym, price, new, start_ms))
-
-    if not alerts:
-        print("آرڈر فلو: کوئی نیا الرٹ نہیں")
-        save_json(OF_STATE_FILE, state)
-        return
-
-    for (tf, side), items in sorted(alerts.items()):
-        lines = [f"{s.replace('USDT', '')} {fmt_price(p)} | {' + '.join(new)}"
-                 for s, p, new, _ in items]
-        name = "Bullish" if side == "BULL" else "Bearish"
-        sent = post_ntfy(f"{tf.upper()} {name} Order Flow", "\n".join(lines),
-                         tags="green_circle" if side == "BULL" else "red_circle",
-                         url=NFTY_OF_URL)
-        if sent:
-            for s, _, new, start_ms in items:
-                for n in new:
-                    state[f"{s}|{tf}|{side}|{start_ms}|{n}"] = start_ms
-    save_json(OF_STATE_FILE, state)
-
-
-# ============================================================
-# ⚡ حصہ B: TP/SL سٹریٹجی — مرحلہ 1 فلٹر
-# ============================================================
-def quick_scan(symbol, win_end):
-    data = get_klines(symbol, "1h", WINDOW_HOURS, end_ms=int(win_end.timestamp() * 1000) - 1)
-    if not isinstance(data, list) or len(data) < 6:
-        return None
-    for k in data[-6:]:
-        o = float(k[1]); c = float(k[4])
-        if o > 0 and abs(c - o) / o * 100 > MOVE_FILTER_PCT:
-            return {"symbol": symbol}
-    return None
-
-
-def load_aggtrades(symbol, win_start, win_end):
-    start_ms = int(win_start.timestamp() * 1000)
-    end_ms = int(win_end.timestamp() * 1000)
-
+def load_real_trades(symbol, start_ms, end_ms):
+    """بار کے آغاز سے اب تک کے aggTrades۔ بہت بھاری ہو تو None۔"""
     trades = []
-    params = {"symbol": symbol, "startTime": start_ms, "limit": 1000}
-    for _ in range(MAX_TRADE_PAGES):
+    params = {"symbol": symbol, "startTime": int(start_ms), "limit": 1000}
+    for _ in range(OF_MAX_TRADE_PAGES):
         data = safe_get(f"{BASE_URL}/api/v3/aggTrades", params=params)
         if not isinstance(data, list):
             return None
@@ -457,387 +348,307 @@ def load_aggtrades(symbol, win_start, win_end):
         if len(data) < 1000:
             return trades
         params = {"symbol": symbol, "fromId": data[-1]["a"] + 1, "limit": 1000}
-
     stats["too_heavy"] += 1
     return None
 
 
-def analyze_symbol(symbol, tick_size, win_start, win_end):
-    trades = load_aggtrades(symbol, win_start, win_end)
-    if trades is None:
+def verify_real(symbol, hist, start_ms, now_ms, tf, progress, tcount):
+    """اصل footprint سے سیٹ اپس دوبارہ جانچیں۔ واپسی: eval_setups کا نتیجہ، یا None (تصدیق ممکن نہیں)۔"""
+    bar = hist[-1]
+    hi, lo = float(bar[2]), float(bar[3])
+    v = float(bar[5])
+    if hi <= lo or v <= 0:
         return None
-    if len(trades) < MIN_TRADES:
-        stats["too_few"] += 1
+
+    # 24h اوسط سے اندازہ: ٹریڈز حد سے بہت زیادہ ہوں تو کالیں ضائع نہ کریں
+    est_trades = tcount * (now_ms - start_ms) / 86_400_000 if tcount else 0
+    if est_trades > OF_MAX_TRADE_PAGES * 1000 * 1.2:
+        stats["too_heavy"] += 1
         return None
 
-    med_q = statistics.median(float(t["q"]) for t in trades[:5000])
-    vol_scale = 100.0 / med_q if med_q > 0 else 1.0
+    trades = load_real_trades(symbol, start_ms, int(time.time() * 1000))
+    if trades is None or len(trades) < OF_MIN_REAL_TRADES:
+        return None
 
-    config = FootprintEngineConfig(
-        tick_size=tick_size,
-        aggregation_type=AggregationType.TIME,
-        aggregation_value="1h",
-        value_area_percentage=0.7,
-    )
-    engine = FootprintEngine(config=config)
+    qty = sum(float(t["q"]) for t in trades)
+    if not (OF_VOL_MATCH[0] <= qty / v <= OF_VOL_MATCH[1]):
+        stats["mismatch"] += 1
+        return None
 
-    for t in trades:
+    return eval_setups(hist, build_profile_real(trades, lo, hi, OF_BUCKETS), tf, progress)
+
+
+def all_sent(sent, sym, tf, start_ms, found):
+    """اس بار کے تمام سیٹ اپس پہلے ہی الرٹ ہو چکے ہوں تو تصدیق کی ضرورت نہیں۔"""
+    keys = [f"{sym}|{tf}|{side}|{start_ms}|{n}"
+            for side, names in found.items() for n in names]
+    return bool(keys) and all(k in sent for k in keys)
+
+
+def check_orderflow(symbol, now_ms, sent, qvol, tcount):
+    out = []
+    m1 = None
+    for tf, cfg in OF_TF.items():
+        mins = cfg["minutes"]
+        ms = mins * 60_000
+        start_ms = now_ms // ms * ms
+        progress = (now_ms - start_ms) / ms
+        if progress < cfg["min_progress"]:
+            continue
+        if tf == "1d" and qvol < DAILY_MIN_QUOTE_VOL:
+            continue
+
+        hist = get_klines(symbol, tf, 21)
+        if not isinstance(hist, list) or len(hist) < 4:
+            continue
+        if int(hist[-1][0]) != start_ms:
+            continue
+
+        if cfg["sub"] == "1m":
+            if m1 is None:
+                m1 = get_klines(symbol, "1m", 250)
+            allsub, sub_min = m1, 1
+        else:
+            allsub = get_klines(symbol, cfg["sub"], 300, start_ms=start_ms)
+            sub_min = int(cfg["sub"][:-1])
+        if not isinstance(allsub, list) or not allsub:
+            continue
+        sub = [k for k in allsub if int(k[0]) >= start_ms]
+        if len(sub) < max(5, int(progress * mins / sub_min * 0.9)):
+            continue
+
+        bar = hist[-1]
+        hi, lo = float(bar[2]), float(bar[3])
+        if hi <= lo:
+            continue
+        est = eval_setups(hist, build_profile(sub, lo, hi, OF_BUCKETS), tf, progress)
+        if not est:
+            continue
+        found, info = est
+        if not (found["BULL"] or found["BEAR"]):
+            continue
+
+        mode = "est"
+        if cfg["verify"]:
+            if all_sent(sent, symbol, tf, start_ms, found):
+                continue
+            real = verify_real(symbol, hist, start_ms, now_ms, tf, progress, tcount.get(symbol, 0))
+            if real is None:
+                stats["unverified"] += 1          # تصدیق ممکن نہیں: تخمینی الرٹ ("est")
+            else:
+                found, info = real
+                if not (found["BULL"] or found["BEAR"]):
+                    stats["rejected"] += 1
+                    print(f"   OF {symbol} {tf}: تخمینے سے بنا، اصل ڈیٹا پر رد")
+                    continue
+                mode = "real"
+                stats["confirmed"] += 1
+
+        tags = [f"{sd}:{'+'.join(nm)}" for sd, nm in found.items() if nm]
+        print(f"   OF {symbol} {tf} ({progress:.0%}) [{mode}]: {info} → {', '.join(tags)}")
+        for side, names in found.items():
+            if names:
+                out.append((tf, side, float(bar[4]), names, start_ms, mode))
+    return out
+
+
+def run_orderflow(symbols, qvol, tcount):
+    now_ms = int(time.time() * 1000)
+    print(f"\nآرڈر فلو: {len(symbols)} کوائنز | ٹائم فریم {list(OF_TF)}")
+
+    cutoff = now_ms - 2 * 24 * 3600 * 1000
+    state = {k: v for k, v in load_json(OF_STATE_FILE).items()
+             if isinstance(v, (int, float)) and v >= cutoff}
+
+    def work(sym):
         try:
-            engine.process_tick(
-                timestamp=utc_naive(t["T"]),
-                price=float(t["p"]),
-                volume=max(1, int(round(float(t["q"]) * vol_scale))),
-                is_bid_trade=not t["m"],
-            )
-        except Exception:
-            continue
+            return sym, check_orderflow(sym, now_ms, state, qvol.get(sym, 0), tcount)
+        except Exception as e:
+            print(f"   OF {sym} error: {e}")
+            return sym, []
 
-    # موجودہ بنتی ہوئی 1h بار کو بند کرنے کے لیے اگلے گھنٹے کی پہلی ٹک بھیجیں
-    flush = win_end if win_end.minute == 0 else win_end.replace(minute=0) + timedelta(hours=1)
+    alerts = {}
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        for sym, res in ex.map(work, symbols):
+            for tf, side, price, names, start_ms, mode in res:
+                new = [n for n in names if f"{sym}|{tf}|{side}|{start_ms}|{n}" not in state]
+                if new:
+                    alerts.setdefault((tf, side), []).append((sym, price, new, start_ms, mode))
+
+    if not alerts:
+        print("آرڈر فلو: کوئی نیا الرٹ نہیں")
+        save_json(OF_STATE_FILE, state)
+        return
+
+    to_track = []
+    for (tf, side), items in sorted(alerts.items()):
+        name = "Bullish" if side == "BULL" else "Bearish"
+        for i in range(0, len(items), NTFY_CHUNK):
+            chunk = items[i:i + NTFY_CHUNK]
+            lines = [f"{s.replace('USDT', '')} {fmt_price(p)} | {' + '.join(new)} [{mode}]"
+                     for s, p, new, _, mode in chunk]
+            sent = post_ntfy(f"{tf.upper()} {name} Order Flow", "\n".join(lines),
+                             tags="green_circle" if side == "BULL" else "red_circle",
+                             url=NFTY_OF_URL)
+            if sent:
+                for s, p, new, start_ms, mode in chunk:
+                    for n in new:
+                        state[f"{s}|{tf}|{side}|{start_ms}|{n}"] = start_ms
+                    to_track.append((tf, side, s, p, new, start_ms, mode))
+    save_json(OF_STATE_FILE, state)
     try:
-        engine.process_tick(
-            timestamp=(flush + timedelta(seconds=1)).replace(tzinfo=None),
-            price=float(trades[-1]["p"]), volume=1, is_bid_trade=True)
-    except Exception:
-        pass
-
-    win_start_n = win_start.replace(tzinfo=None)
-    win_end_n = win_end.replace(tzinfo=None)
-
-    rows = []
-    for bar in engine.get_all_completed_bars():
-        if not (win_start_n <= bar.start_time < win_end_n):
-            continue
-        rows.append({
-            "start_time": bar.start_time,
-            "high": bar.high_price,
-            "low": bar.low_price,
-            "close": bar.close_price,
-            "poc": bar.poc_price,
-            "delta": bar.bar_delta,
-            "bid_volume": bar.total_bar_bid_volume,
-            "ask_volume": bar.total_bar_ask_volume,
-        })
-
-    if len(rows) < 6:
-        return None
-
-    df = pd.DataFrame(rows).sort_values("start_time")
-    rng = (df["high"] - df["low"])
-    df["poc_position"] = ((df["poc"] - df["low"]) / rng.where(rng > 0)).fillna(0.5)
-    df["ratio"] = df["ask_volume"] / df["bid_volume"].replace(0, 1)
-
-    df["of_bull"] = (df["delta"] > 0) & (df["poc_position"] > POC_BULL_MIN) & (df["ratio"] > 1.0)
-    df["of_bear"] = (df["delta"] < 0) & (df["poc_position"] < POC_BEAR_MAX) & (df["ratio"] < 1.0)
-
-    bull = int(df["of_bull"].sum())
-    bear = int(df["of_bear"].sum())
-    total = bull + bear
-    if total < MIN_SIGNALS:
-        return None
-
-    # درست سمت: زیادہ bullish bars ہوں تو BUY، زیادہ bearish ہوں تو SELL۔
-    # پرانے کوڈ میں یہ دونوں فیصلے الٹے تھے۔
-    bull_pct = bull / total * 100
-    if bull_pct >= SELL_THRESHOLD:
-        signal = "BUY"
-    elif bull_pct <= BUY_THRESHOLD:
-        signal = "SELL"
-    else:
-        return None
-
-    atr_pct = float(((df["high"] - df["low"]) / df["close"]).mean() * 100)
-
-    if max(STOP_PCT, SL_ATR_MULT * atr_pct) > MAX_SL_PCT:
-        stats["wide_sl"] += 1
-        return None
-
-    score = min(total, 8) + abs(bull_pct - 50) / 50 * 5
-    return {
-        "symbol": symbol,
-        "signal": signal,
-        "atr_pct": atr_pct,
-        "price": float(df.iloc[-1]["close"]),
-        "bull_count": bull,
-        "bear_count": bear,
-        "bull_pct": bull_pct,
-        "bars": len(df),
-        "score": score,
-    }
-
-
-def trade_levels(signal, entry, atr_pct):
-    tp_pct = max(TARGET_PCT, TP_ATR_MULT * atr_pct)
-    sl_pct = max(STOP_PCT, SL_ATR_MULT * atr_pct)
-    if signal == "BUY":
-        tp = entry * (1 + tp_pct / 100)
-        sl = entry * (1 - sl_pct / 100)
-    else:
-        tp = entry * (1 - tp_pct / 100)
-        sl = entry * (1 + sl_pct / 100)
-    return tp, sl, tp_pct, sl_pct
-
-
-def apply_live_prices(signals):
-    data = safe_get(f"{BASE_URL}/api/v3/ticker/price")
-    if not isinstance(data, list):
-        print("⚠️ live قیمتیں نہیں ملیں — پرانی close استعمال ہو رہی ہے")
-        return signals
-    live = {d["symbol"]: float(d["price"]) for d in data}
-
-    fresh = []
-    for s in signals:
-        p = live.get(s["symbol"])
-        if not p:
-            fresh.append(s)
-            continue
-        _, _, _, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
-        drift = (p - s["price"]) / s["price"] * 100
-        if abs(drift) >= MAX_DRIFT_FRAC * sl_pct:
-            print(f"   {s['symbol']}: پرانا سگنل (قیمت {drift:+.2f}% ہل چکی) — رد")
-            continue
-        s["price"] = p
-        fresh.append(s)
-    return fresh
-
-
-def in_cooldown(st, sym, now):
-    t = st.get(sym)
-    if not t:
-        return False
-    try:
-        return now - datetime.fromisoformat(t) < timedelta(hours=COOLDOWN_HOURS)
-    except Exception:
-        return False
-
-
-def send_signals(signals):
-    for s in signals:
-        sym = s["symbol"].replace("USDT", "")
-        tp, sl, tp_pct, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
-        buy = s["signal"] == "BUY"
-        sign_tp, sign_sl = ("+", "-") if buy else ("-", "+")
-        body = (
-            f"Entry: {fmt_price(s['price'])}\n"
-            f"TP: {fmt_price(tp)} ({sign_tp}{tp_pct:.1f}%)\n"
-            f"SL: {fmt_price(sl)} ({sign_sl}{sl_pct:.1f}%)\n"
-            f"Bull {s['bull_pct']:.0f}% | {s['bull_count']}B/{s['bear_count']}S\n"
-            f"Max hold {MAX_HOLD_HOURS}h | fees ~{FEE_ROUNDTRIP_PCT}%"
-        )
-        post_ntfy(f"{s['signal']} {sym} @ {fmt_price(s['price'])}", body,
-                  tags="green_circle,moneybag" if buy else "red_circle,moneybag")
-        time.sleep(0.3)
+        register_of_trades(to_track, now_ms)
+    except Exception as e:
+        print(f"ٹریکر رجسٹریشن error: {e}")
 
 
 # ============================================================
-# 📈 ٹریڈ ٹریکر: TP / SL / Timeout کا نتیجہ
-#    - ہر سگنل بھیجتے وقت کھلی ٹریڈ محفوظ ہوتی ہے
-#    - ہر رن پر 1m کینڈلز سے دیکھا جاتا ہے کہ پہلے TP لگا یا SL
-#    - ایک ہی کینڈل میں دونوں چھو جائیں تو BOTH_HIT_RESULT (محتاط: SL)
-#    - MAX_HOLD_HOURS گزرنے پر Timeout (اس وقت کی قیمت پر بند)
-#    - نتیجے کا Ntfy الرٹ + win rate کا خلاصہ
+# 📈 ٹریکر: ہر بھیجے گئے الرٹ کی پیمائش
+#    - الرٹ کے وقت کی قیمت entry مانی جاتی ہے
+#    - مقررہ وقت (1h→6 گھنٹے، 4h→24 گھنٹے، ڈیلی→72 گھنٹے) گزرنے پر نتیجہ نکلتا ہے:
+#        MFE = سازگار سمت میں زیادہ سے 
+#        MAE = مخالف سمت میں زیادہ سے زیادہ حرکت (fakeout یہاں نظر آتا ہے)
+#        end = مدت کے اختتام پر سمت کے لحاظ سے منافع/نقصان
+#    - SL/TP نہیں، اس لیے fakeout سے ٹریڈ "ماری" نہیں جاتی
+#    - ایک بار (sym, tf, side) کا ایک ہی اندراج؛ بعد میں آنے والے سیٹ اپس اسی میں جمع ہوتے ہیں
 # ============================================================
-def load_trades():
+def load_book():
     d = load_json(TRADES_FILE)
-    return {"open": d.get("open", []), "closed": d.get("closed", [])}
+    # پرانی سٹریٹجی کی ٹریڈز (جن میں "tf" نہیں) چھوڑ دی جاتی ہیں
+    return {"open": [t for t in d.get("open", []) if "tf" in t],
+            "closed": [t for t in d.get("closed", []) if "tf" in t],
+            "last_report_day": d.get("last_report_day")}
 
 
-def register_trades(signals, now):
-    """نئے بھیجے گئے سگنلز کو کھلی ٹریڈز میں شامل کریں۔"""
-    book = load_trades()
-    now_ms = int(now.timestamp() * 1000)
-    for s in signals:
-        tp, sl, tp_pct, sl_pct = trade_levels(s["signal"], s["price"], s["atr_pct"])
-        book["open"].append({
-            "id": f"{s['symbol']}|{now_ms}",
-            "symbol": s["symbol"],
-            "side": s["signal"],
-            "entry": s["price"],
-            "tp": tp,
-            "sl": sl,
-            "tp_pct": tp_pct,
-            "sl_pct": sl_pct,
-            "opened_ms": now_ms,
-            "expires_ms": now_ms + MAX_HOLD_HOURS * 3600 * 1000,
-            "checked_ms": (now_ms // 60_000 + 1) * 60_000,  # اگلی مکمل 1m کینڈل سے
-        })
+def register_of_trades(entries, now_ms):
+    if not entries:
+        return
+    book = load_book()
+    idx = {t["id"]: t for t in book["open"]}
+    for tf, side, sym, price, names, start_ms, mode in entries:
+        tid = f"{sym}|{tf}|{side}|{start_ms}"
+        if tid in idx:
+            for n in names:
+                if n not in idx[tid]["setups"]:
+                    idx[tid]["setups"].append(n)
+            continue
+        tr = {
+            "id": tid, "symbol": sym, "tf": tf, "side": side,
+            "setups": list(names), "mode": mode, "entry": price,
+            "bar_start_ms": start_ms, "opened_ms": now_ms,
+            "expires_ms": now_ms + OF_TRACK[tf]["hours"] * 3600 * 1000,
+        }
+        book["open"].append(tr)
+        idx[tid] = tr
     save_json(TRADES_FILE, book)
 
 
-def evaluate_trade(tr, now_ms):
-    """ایک کھلی ٹریڈ چیک کریں۔ بند ہو تو (result, exit_price, exit_ms) ورنہ None۔
-    ڈیٹا نہ ملے تو بھی None (ٹریڈ کھلی رہتی ہے)۔"""
-    buy = tr["side"] == "BUY"
-    start = int(tr["checked_ms"])
-    kl = get_klines_from(tr["symbol"], "1m", start, 1000)
+def evaluate_of_trade(tr, now_ms):
+    """مدت پوری ہو تو {mfe_pct, mae_pct, ret_pct, exit, closed_ms}؛ ورنہ None؛ ڈیٹا کبھی نہ ملے تو "DROP"۔"""
+    if now_ms < tr["expires_ms"]:
+        return None
+    cfg = OF_TRACK[tr["tf"]]
+    step_ms = cfg["step_ms"]
+    first = (tr["opened_ms"] // step_ms + 1) * step_ms      # الرٹ کے بعد پہلی مکمل کینڈل
+    kl = get_klines(tr["symbol"], cfg["step"], 1000, start_ms=first, end_ms=tr["expires_ms"])
     if not isinstance(kl, list):
         return None
+    kl = [k for k in kl if int(k[6]) <= tr["expires_ms"]]
+    expected = (tr["expires_ms"] - first) // step_ms
+    if len(kl) < max(1, int(expected * 0.8)):
+        return "DROP" if now_ms > tr["expires_ms"] + 2 * 86_400_000 else None
 
-    last_close = None
-    last_ms = start
-    for k in kl:
-        k_open, k_close_time = int(k[0]), int(k[6])
-        if k_close_time >= now_ms:      # ابھی بنتی ہوئی کینڈل چھوڑ دیں
-            break
-        if k_open >= tr["expires_ms"]:
-            break
-        h, l, c = float(k[2]), float(k[3]), float(k[4])
-        hit_tp = h >= tr["tp"] if buy else l <= tr["tp"]
-        hit_sl = l <= tr["sl"] if buy else h >= tr["sl"]
-        if hit_tp and hit_sl:
-            res = BOTH_HIT_RESULT
-            return res, (tr["tp"] if res == "TP" else tr["sl"]), k_open
-        if hit_tp:
-            return "TP", tr["tp"], k_open
-        if hit_sl:
-            return "SL", tr["sl"], k_open
-        last_close, last_ms = c, k_open + 60_000
-
-    if now_ms >= tr["expires_ms"]:
-        if last_close is None:
-            last_close = live_price(tr["symbol"]) or tr["entry"]
-        return "TIMEOUT", last_close, tr["expires_ms"]
-
-    tr["checked_ms"] = last_ms          # اگلی بار یہیں سے آگے
-    return None
+    entry = tr["entry"]
+    top = max(float(k[2]) for k in kl)
+    bottom = min(float(k[3]) for k in kl)
+    last = float(kl[-1][4])
+    if tr["side"] == "BULL":
+        mfe, mae, ret = (top - entry) / entry * 100, (entry - bottom) / entry * 100, (last - entry) / entry * 100
+    else:
+        mfe, mae, ret = (entry - bottom) / entry * 100, (top - entry) / entry * 100, (entry - last) / entry * 100
+    return {"mfe_pct": max(mfe, 0.0), "mae_pct": max(mae, 0.0), "ret_pct": ret,
+            "exit": last, "closed_ms": now_ms}
 
 
-def get_klines_from(symbol, interval, start_ms, limit):
-    return safe_get(f"{BASE_URL}/api/v3/klines",
-                    params={"symbol": symbol, "interval": interval,
-                            "startTime": start_ms, "limit": limit})
-
-
-def live_price(symbol):
-    d = safe_get(f"{BASE_URL}/api/v3/ticker/price", params={"symbol": symbol})
-    try:
-        return float(d["price"])
-    except Exception:
-        return None
-
-
-def pnl_pct(side, entry, exit_price):
-    gross = (exit_price - entry) / entry * 100
-    if side == "SELL":
-        gross = -gross
-    return gross - FEE_ROUNDTRIP_PCT
+def group_line(label, rows):
+    n = len(rows)
+    end_ok = sum(1 for r in rows if r["ret_pct"] > 0)
+    edge = sum(1 for r in rows if r["mfe_pct"] > r["mae_pct"])
+    mfe = statistics.mean(r["mfe_pct"] for r in rows)
+    mae = statistics.mean(r["mae_pct"] for r in rows)
+    star = "*" if n < SMALL_SAMPLE else ""
+    return (f"{label} n={n}{star}: end+ {end_ok / n * 100:.0f}% | MFE>MAE {edge / n * 100:.0f}% | "
+            f"MFE +{mfe:.1f}% / MAE -{mae:.1f}%")
 
 
 def summary_text(closed):
-    last = closed[-SUMMARY_LAST_N:]
-    if not last:
-        return "No closed trades yet"
-    wins = sum(1 for t in last if t["pnl_pct"] > 0)
-    tp = sum(1 for t in last if t["result"] == "TP")
-    sl = sum(1 for t in last if t["result"] == "SL")
-    to = sum(1 for t in last if t["result"] == "TIMEOUT")
-    total = sum(t["pnl_pct"] for t in last)
-    return (f"Last {len(last)}: win {wins / len(last) * 100:.0f}% | "
-            f"TP {tp} / SL {sl} / TO {to} | net {total:+.1f}% (after fees)")
+    lines = []
+    for tf in OF_TF:
+        for mode in ("real", "est"):
+            rows = [t for t in closed if t["tf"] == tf and t.get("mode") == mode][-SUMMARY_LAST_N:]
+            if rows:
+                lines.append(group_line(f"{tf} {mode}", rows))
+    return "\n".join(lines) or "No closed trades yet"
 
 
-def track_trades():
-    """کھلی ٹریڈز چیک کریں، بند ہونے والی کی اطلاع دیں، خلاصہ بھیجیں۔"""
-    book = load_trades()
-    if not book["open"]:
-        print("ٹریکر: کوئی کھلی ٹریڈ نہیں")
-        return
+def setup_report(closed):
+    names = sorted({n for t in closed for n in t["setups"]})
+    lines = ["By setup (all kept results, * = small sample)"]
+    for tf in OF_TF:
+        for n in names:
+            rows = [t for t in closed if t["tf"] == tf and n in t["setups"]]
+            if rows:
+                lines.append(group_line(f"{tf} {n}", rows))
+    lines += ["", "By timeframe / mode (last results)", summary_text(closed)]
+    return "\n".join(lines)
+
+
+def result_line(t):
+    side = "Bull" if t["side"] == "BULL" else "Bear"
+    return (f"{t['symbol'].replace('USDT', '')} {t['tf']} {side} [{t['mode']}] "
+            f"{'+'.join(t['setups'])} | MFE +{t['mfe_pct']:.1f}% MAE -{t['mae_pct']:.1f}% | "
+            f"end {t['ret_pct']:+.1f}%")
+
+
+def track_of_trades():
+    """مدت پوری کرنے والی ٹریڈز کا نتیجہ نکالیں، اطلاع دیں، روزانہ سیٹ اپ رپورٹ بھیجیں۔"""
+    book = load_book()
     now_ms = int(time.time() * 1000)
-    print(f"\nٹریکر: {len(book['open'])} کھلی ٹریڈز چیک ہو رہی ہیں")
+    print(f"\nٹریکر: {len(book['open'])} کھلی | {len(book['closed'])} بند")
 
-    still_open, newly_closed = [], []
+    still, newly = [], []
     for tr in book["open"]:
         try:
-            res = evaluate_trade(tr, now_ms)
+            res = evaluate_of_trade(tr, now_ms)
         except Exception as e:
             print(f"   {tr['symbol']} ٹریکر error: {e}")
             res = None
         if res is None:
-            still_open.append(tr)
-            continue
-        result, exit_price, exit_ms = res
-        tr = dict(tr, result=result, exit=exit_price, exit_ms=exit_ms,
-                  pnl_pct=pnl_pct(tr["side"], tr["entry"], exit_price))
-        newly_closed.append(tr)
-        print(f"   {tr['symbol']} {tr['side']}: {result} ({tr['pnl_pct']:+.2f}%)")
+            still.append(tr)
+        elif res == "DROP":
+            print(f"   {tr['symbol']} {tr['tf']}: ڈیٹا نہیں ملا، اندراج ہٹا دیا")
+        else:
+            newly.append(dict(tr, **res))
+            print(f"   {result_line(newly[-1])}")
 
-    book["open"] = still_open
-    book["closed"] = (book["closed"] + newly_closed)[-MAX_CLOSED_KEEP:]
+    book["open"] = still
+    book["closed"] = (book["closed"] + newly)[-MAX_CLOSED_KEEP:]
+
+    if newly:
+        lines = [result_line(t) for t in newly[:15]]
+        if len(newly) > 15:
+            lines.append(f"+{len(newly) - 15} more")
+        body = "\n".join(lines) + f"\nopen now: {len(still)}\n" + summary_text(book["closed"])
+        post_ntfy(f"OF results: {len(newly)} closed", body, tags="bar_chart",
+                  url=NFTY_OF_URL, priority="default")
+
+    today = now_ms // 86_400_000
+    if book["closed"] and book.get("last_report_day") != today:
+        if post_ntfy("OF daily report", setup_report(book["closed"]), tags="chart_with_upwards_trend",
+                     url=NFTY_OF_URL, priority="default"):
+            book["last_report_day"] = today
+
     save_json(TRADES_FILE, book)
-
-    if not newly_closed:
-        print(f"ٹریکر: کوئی ٹریڈ بند نہیں ہوئی | {len(still_open)} کھلی")
-        return
-
-    summary = summary_text(book["closed"])
-    for tr in newly_closed:
-        sym = tr["symbol"].replace("USDT", "")
-        held_h = (tr["exit_ms"] - tr["opened_ms"]) / 3_600_000
-        body = (
-            f"{tr['side']} {sym} | {tr['result']} | {tr['pnl_pct']:+.2f}% net\n"
-            f"Entry {fmt_price(tr['entry'])} -> Exit {fmt_price(tr['exit'])}\n"
-            f"Held {held_h:.1f}h | open now: {len(still_open)}\n"
-            f"{summary}"
-        )
-        tag = {"TP": "white_check_mark", "SL": "x", "TIMEOUT": "hourglass"}[tr["result"]]
-        post_ntfy(f"{tr['result']} {sym} {tr['pnl_pct']:+.1f}%", body, tags=tag)
-        time.sleep(0.3)
-
-
-def run_strategy(symbols, ticks, of_set, win_start, win_end):
-    if B_EXCLUDE_OF_COINS:
-        symbols = [s for s in symbols if s not in of_set]
-    print(f"\nمرحلہ 1: {len(symbols)} کوئنز Klines فلٹر...")
-    candidates = []
-    with ThreadPoolExecutor(max_workers=THREADS_KLINES) as ex:
-        futures = [ex.submit(quick_scan, s, win_end) for s in symbols]
-        for i, f in enumerate(as_completed(futures), 1):
-            if i % 100 == 0:
-                print(f"   {i}/{len(symbols)}")
-            try:
-                r = f.result()
-                if r:
-                    candidates.append(r)
-            except Exception as e:
-                print(f"   scan error: {e}")
-    print(f"{len(candidates)} کوئنز پاس")
-    if not candidates:
-        print("کوئی کوئن نہیں")
-        return
-
-    print(f"\nمرحلہ 2: {len(candidates)} کوئنز aggTrades...")
-    signals = []
-    with ThreadPoolExecutor(max_workers=THREADS_AGG) as ex:
-        futures = {ex.submit(analyze_symbol, c["symbol"], ticks[c["symbol"]],
-                             win_start, win_end): c["symbol"] for c in candidates}
-        for i, f in enumerate(as_completed(futures), 1):
-            if i % 10 == 0:
-                print(f"   {i}/{len(candidates)}")
-            try:
-                r = f.result()
-                if r:
-                    signals.append(r)
-                    print(f"   {r['symbol']}: {r['signal']} ({r['bull_pct']:.0f}%)")
-            except Exception as e:
-                print(f"   {futures[f]} error: {e}")
-
-    print(f"{len(signals)} سگنلز (فلٹر سے پہلے) | اعداد: {stats}")
-    signals = apply_live_prices(signals) if signals else signals
-
-    now = datetime.now(timezone.utc)
-    state = load_json(STATE_FILE)
-    signals = [s for s in signals if not in_cooldown(state, s["symbol"], now)]
-    signals.sort(key=lambda s: s["score"], reverse=True)
-    signals = signals[:MAX_SIGNALS_PER_SCAN]
-
-    if not signals:
-        print("کوئی سگنل نہیں — اگلی بار")
-        return
-    send_signals(signals)
-    register_trades(signals, now)
-    for s in signals:
-        state[s["symbol"]] = now.isoformat()
-    save_json(STATE_FILE, state)
 
 
 # ============================================================
@@ -845,35 +656,31 @@ def run_strategy(symbols, ticks, of_set, win_start, win_end):
 # ============================================================
 def main():
     start = datetime.now()
-    win_start, win_end = window_bounds()
     print("=" * 60)
-    print(f"{start.strftime('%H:%M:%S')} | {WINDOW_HOURS}h ونڈو "
-          f"{win_start:%m-%d %H:%M} → {win_end:%m-%d %H:%M} UTC (آخری بند 15m)")
+    print(f"{start.strftime('%H:%M:%S')} | آرڈر فلو سکینر | ٹاپ {OF_COIN_COUNT} کوائنز")
     print("=" * 60)
 
-    symbols, ticks = get_all_markets()
+    symbols, qvol, tcount = get_top_markets()
     if not symbols:
         print("مارکیٹس نہیں ملیں")
         return
 
-    of_symbols = symbols[:OF_COIN_COUNT]
-
-    # 1) آرڈر فلو الرٹس (جاری 1h/4h بار، کلوزنگ کی شرط نہیں)
+    # 1) آرڈر فلو الرٹس (جاری 1h/4h/ڈیلی بار، کلوزنگ کی شرط نہیں)
     try:
-        run_orderflow(of_symbols)
+        run_orderflow(symbols, qvol, tcount)
     except Exception as e:
         print(f"آرڈر فلو error: {e}")
 
-    # 2) کھلی ٹریڈز کا نتیجہ (TP/SL/Timeout) — نئے سگنلز سے پہلے چیک کریں
+    # 2) ٹریکر: مدت پوری کرنے والے الرٹس کا نتیجہ
     try:
-        track_trades()
+        track_of_trades()
     except Exception as e:
         print(f"ٹریکر error: {e}")
 
-    # 3) TP/SL سٹریٹجی (15m کینڈل بند ہونے پر)
-    run_strategy(symbols, ticks, set(of_symbols), win_start, win_end)
-    print(f"\nمکمل: {(datetime.now() - start).total_seconds():.0f}s")
+    print(f"\nاعداد: {stats}")
+    print(f"مکمل: {(datetime.now() - start).total_seconds():.0f}s")
 
 
 if __name__ == "__main__":
     main()
+    
