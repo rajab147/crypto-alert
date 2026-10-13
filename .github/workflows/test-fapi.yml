@@ -1,10 +1,10 @@
-name: Test FAPI
-on: workflow_dispatch
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Ping futures API
+steps:
+      - name: Test exchanges
         run: |
-          curl -s -o /dev/null -w "%{http_code}\n" "https://fapi.bybit.com/fapi/v1/ping"
+          check() { echo "$1 -> $(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$2")"; }
+          check bybit   "https://api.bybit.com/v5/market/time"
+          check okx     "https://www.okx.com/api/v5/public/time"
+          check bitget  "https://api.bitget.com/api/v2/public/time"
+          check gate    "https://api.gateio.ws/api/v4/futures/usdt/contracts/BTC_USDT"
+          check mexc    "https://contract.mexc.com/api/v1/contract/ping"
+          check hyper   "https://api.hyperliquid.xyz/info"
