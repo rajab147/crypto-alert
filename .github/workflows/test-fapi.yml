@@ -1,4 +1,10 @@
-steps:
+name: Test FAPI
+on: workflow_dispatch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
       - name: Test exchanges
         run: |
           check() { echo "$1 -> $(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$2")"; }
