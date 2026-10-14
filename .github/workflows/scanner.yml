@@ -34,5 +34,5 @@ jobs:
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python orderflow_futures.py
+        run: python "OrderFlow_Scanner_Tracker (1).py"
         
