@@ -1,57 +1,38 @@
-name: Live Signal Scanner
+name: Futures Order Flow
 
 on:
   schedule:
-    - cron: '2,17,32,47 * * * *'
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 concurrency:
-  group: live-signal-scanner
+  group: orderflow
   cancel-in-progress: false
 
 jobs:
-  scan_market:
+  scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
-
+    timeout-minutes: 9
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
+          python-version: "3.12"
+      - run: pip install requests numpy
 
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install setuptools wheel
-          pip install -r requirements.txt
-
-      - name: Restore state
-        uses: actions/cache/restore@v4
+      # state فائلیں رنز کے درمیان محفوظ رکھنے کے لیے (ہر رن نئی key، پچھلی restore)
+      - uses: actions/cache@v4
         with:
           path: |
-            signal_state.json
+            flow_state.json.gz
             orderflow_state.json
             trades_state.json
-          key: scanner-state-${{ github.run_id }}
-          restore-keys: scanner-state-
+          key: of-state-${{ github.run_id }}
+          restore-keys: of-state-
 
-      - name: Run Scanner
+      - name: Run scanner
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python "OrderFlow_Scanner_Tracker (1).py"
-
-      - name: Save state
-        if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            signal_state.json
-            orderflow_state.json
-            trades_state.json
-          key: scanner-state-${{ github.run_id }}
+        run: python orderflow_futures.py
+        
