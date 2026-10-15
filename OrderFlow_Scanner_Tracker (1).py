@@ -17,15 +17,25 @@ from concurrent.futures import ThreadPoolExecutor
 #    ہر رن میں نئے ٹریڈز اٹھا کر 5 منٹ کے خانوں میں جمع ہوتے ہیں (state فائل)
 #    الرٹ تب بنتا ہے جب بار کا ڈیٹا کم از کم MIN_COVERAGE تک مکمل ہو
 # ============================================================
-TIER1_COUNT = 200           # والیوم میں پہلے 200 کوائنز
-TIER2_COUNT = 100           # اگلے 100 (رینک 201–300)، چھوٹے ٹوکنز
-DAILY_MIN_QUOTE_VOL = 2_000_000
+TIER1_COUNT = 100           # پہلے 100 زیادہ لیکویڈ کوائنز
+TIER2_COUNT = 20            # ان کے علاوہ زیادہ سے زیادہ 20 کموڈٹی سے متعلق ٹوکنز
+MIN_EXCHANGE_QUOTE_VOL = 5_000_000  # کم از کم ایک ایکسچینج پر 24h والیوم $5M
+MIN_COMMODITY_QUOTE_VOL = 1_000_000 # کموڈٹی ٹوکن کے لیے کم از کم ایک ایکسچینج پر $1M
+DAILY_MIN_QUOTE_VOL = 30_000_000
 MIN_BAR_USD = 20_000        # بار میں اس سے کم کل ٹریڈ والیوم پر الرٹ نہیں
 
+# صرف امیدوار نام: load_universe میں وہی شامل ہوں گے جو OKX/Gate/Bitget پر
+# واقعی USDT perpetual کے طور پر ملیں اور والیوم شرط پوری کریں۔
+COMMODITY_BASES = {
+    "PAXG", "XAUT", "KAU", "DGLD", "PMGT", "GOLD", "XAU", "XAUM",
+    "XAG", "SILVER", "SLV", "OIL", "WTI", "BRENT", "COPPER",
+    "XPT", "PLATINUM", "XPD", "PALLADIUM", "URANIUM"
+}
+
 OF_TF = {
-    "1h": {"minutes": 60,   "min_delta_pct": 6.0, "min_progress": 0.50, "div": True},
-    "4h": {"minutes": 240,  "min_delta_pct": 5.0, "min_progress": 0.25, "div": True},
-    "1d": {"minutes": 1440, "min_delta_pct": 4.0, "min_progress": 0.25, "div": False},
+    "1h": {"minutes": 60,   "min_delta_pct": 6.0, "min_progress": 0.15, "div": True},
+    "4h": {"minutes": 240,  "min_delta_pct": 5.0, "min_progress": 0.08, "div": True},
+    "1d": {"minutes": 1440, "min_delta_pct": 4.0, "min_progress": 0.02, "div": False},
 }
 OF_BUCKETS = 40
 OF_LOOKBACK = 12
@@ -224,13 +234,41 @@ def load_universe():
                 qv = _f(t.get("usdtVolume")) or _f(t.get("quoteVolume"))
                 put(s[:-4], "bitget", s, 1.0, qv)
 
-    ranked = sorted(uni.values(), key=lambda u: u["qvol"], reverse=True)
-    ranked = ranked[:TIER1_COUNT + TIER2_COUNT]
+    all_ranked = sorted(uni.values(), key=lambda u: u["qvol"], reverse=True)
+
+    # پہلے زیادہ لیکویڈ عام کوائنز؛ کم والیوم والے ٹوکن خودکار طور پر باہر۔
+    liquid = [u for u in all_ranked
+              if u["base"] not in COMMODITY_BASES
+              and max((d["qv"] for d in u["ex"].values()), default=0) >= MIN_EXCHANGE_QUOTE_VOL]
+    # اگر $5M فلٹر کے بعد 100 سے کم ہوں تو اگلے سب سے بہتر دستیاب کوائنز سے جگہ پُر کریں،
+    # مگر انتہائی کم والیوم والے (ہر ایکسچینج پر $2M سے کم) شامل نہ ہوں۔
+    if len(liquid) < TIER1_COUNT:
+        fallback = [u for u in all_ranked
+                    if u["base"] not in COMMODITY_BASES
+                    and max((d["qv"] for d in u["ex"].values()), default=0) >= 2_000_000]
+        seen = {u["base"] for u in liquid}
+        liquid.extend(u for u in fallback if u["base"] not in seen)
+    selected_coins = liquid[:TIER1_COUNT]
+
+    # کموڈٹی امیدواروں میں سے صرف حقیقی listed USDT perpetuals شامل ہوں گے۔
+    commodities = [u for u in all_ranked
+                   if u["base"] in COMMODITY_BASES
+                   and max((d["qv"] for d in u["ex"].values()), default=0) >= MIN_COMMODITY_QUOTE_VOL]
+    commodities = commodities[:TIER2_COUNT]
+
+    ranked = selected_coins + commodities
     for i, u in enumerate(ranked):
-        u["tier"] = 1 if i < TIER1_COUNT else 2
+        u["tier"] = 1 if i < len(selected_coins) else 2
         u["ref"] = max(u["ex"], key=lambda e: u["ex"][e]["qv"])
     per_ex = {e: sum(1 for u in ranked if e in u["ex"]) for e in HOSTS}
-    print(f"یونیورس: {len(ranked)} کوائنز (T1={min(TIER1_COUNT, len(ranked))}) | ایکسچینج کوریج {per_ex}")
+    commodity_count = sum(1 for u in ranked if u["base"] in COMMODITY_BASES)
+    print(f"یونیورس: {len(selected_coins)} لیکویڈ کوائنز + {commodity_count} دستیاب کموڈٹی ٹوکنز "
+          f"(زیادہ سے زیادہ {TIER2_COUNT}) | ایکسچینج کوریج {per_ex}")
+    if commodity_count < TIER2_COUNT:
+        print(f"نوٹ: 20 کموڈٹی ٹوکنز میں سے صرف {commodity_count} اس وقت supported exchanges پر "
+              "USDT perpetual اور والیوم شرط کے ساتھ ملے؛ غیر موجود مارکیٹس فرضی طور پر شامل نہیں کی گئیں۔")
+    if len(selected_coins) < TIER1_COUNT:
+        print(f"نوٹ: فلٹر کے بعد {TIER1_COUNT} کے بجائے {len(selected_coins)} قابلِ قبول کوائنز ملے۔")
     return ranked
 
 
@@ -510,6 +548,7 @@ def bar_sum(state, sym, a, b):
 def bar_delta(state, sym, info, a, b):
     if coverage(state, sym, info, a, b) < MIN_COVERAGE:
         return None
+        
     buy, sell, _ = bar_sum(state, sym, a, b)
     return buy - sell if buy + sell > 0 else None
 
@@ -574,7 +613,7 @@ def eval_setups(hist, buy_usd, sell_usd, profile, tf, progress, prev_deltas):
             and close_pos <= OF_CLOSE_BEAR and vol_ok):
         found["BEAR"].append("Delta+POC")
 
-    if vol_ratio >= OF_ABS_VOL and delta_pct <= -OF_ABS_VOL and delta_pct <= -OF_ABS_DELTA and c >= o and close_pos >= 0.55:
+    if vol_ratio >= OF_ABS_VOL and delta_pct <= -OF_ABS_DELTA and c >= o and close_pos >= 0.55:
         found["BULL"].append("Absorption")
     if vol_ratio >= OF_ABS_VOL and delta_pct >= OF_ABS_DELTA and c <= o and close_pos <= 0.45:
         found["BEAR"].append("Absorption")
@@ -863,6 +902,17 @@ def track_of_trades():
     save_json(TRADES_FILE, book)
 
 
+def print_coverage(ranked, state, now_ms):
+    """سب سے مصروف 12 کوائنز کی موجودہ 1h بار کی کوریج، ایکسچینج کے لحاظ سے۔"""
+    a = now_ms // 3_600_000 * 3_600_000
+    print("\nکوریج (موجودہ 1h بار، سب سے مصروف کوائنز):")
+    for u in ranked[:12]:
+        sym = u["base"]
+        parts = [f"{ex} {coverage(state, sym, {'ex': {ex: d}}, a, now_ms):.0%}"
+                 for ex, d in u["ex"].items()]
+        print(f"   {sym}: کل {coverage(state, sym, u, a, now_ms):.0%} | " + " ".join(parts))
+
+
 # ============================================================
 # 🧪 selftest: python orderflow_futures.py --selftest
 #    ہر ایکسچینج سے BTC کے ٹریڈز اور کینڈلز اٹھا کر فیلڈز کی تصدیق
@@ -943,6 +993,8 @@ def main():
         run_orderflow(ranked, state)
     except Exception as e:
         print(f"آرڈر فلو error: {e}")
+
+    print_coverage(ranked, state, int(time.time() * 1000))
 
     # 3) ٹریکر
     try:
