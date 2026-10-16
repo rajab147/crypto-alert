@@ -15,14 +15,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          
       - run: pip install requests numpy
 
-      # state فائلیں رنز کے درمیان محفوظ رکھنے کے لیے
+      # state فائلیں رنز کے درمیان محفوظ رکھنے کے لیے (key اور path نہ بدلیں، ورنہ ٹریکر کی ہسٹری مٹ جائے گی)
       - uses: actions/cache@v4
         with:
           path: |
@@ -36,4 +34,5 @@ jobs:
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python "OrderFlow_Scanner_Tracker (1).py"
+        run: python orderflow_spot_futures.py
+        
