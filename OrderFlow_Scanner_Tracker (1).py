@@ -22,7 +22,7 @@ TIER2_COUNT = 20            # ان کے علاوہ زیادہ سے زیادہ 20
 MIN_EXCHANGE_QUOTE_VOL = 5_000_000  # کم از کم ایک ایکسچینج پر 24h والیوم $5M
 MIN_COMMODITY_QUOTE_VOL = 1_000_000 # کموڈٹی ٹوکن کے لیے کم از کم ایک ایکسچینج پر $1M
 DAILY_MIN_QUOTE_VOL = 30_000_000
-MIN_BAR_USD = 20_000        # بار میں اس سے کم کل ٹریڈ والیوم پر الرٹ نہیں
+MIN_BAR_USD = 150_000       # بار میں اس سے کم کل ٹریڈ والیوم پر الرٹ نہیں (پتلے ڈیٹا کا شور)
 
 # صرف امیدوار نام: load_universe میں وہی شامل ہوں گے جو OKX/Gate/Bitget پر
 # واقعی USDT perpetual کے طور پر ملیں اور والیوم شرط پوری کریں۔
@@ -33,9 +33,9 @@ COMMODITY_BASES = {
 }
 
 OF_TF = {
-    "1h": {"minutes": 60,   "min_delta_pct": 6.0, "min_progress": 0.15, "div": True},
-    "4h": {"minutes": 240,  "min_delta_pct": 5.0, "min_progress": 0.08, "div": True},
-    "1d": {"minutes": 1440, "min_delta_pct": 4.0, "min_progress": 0.02, "div": False},
+    "1h": {"minutes": 60,   "min_delta_pct": 6.0, "min_progress": 0.35, "div": True},
+    "4h": {"minutes": 240,  "min_delta_pct": 5.0, "min_progress": 0.15, "div": True},
+    "1d": {"minutes": 1440, "min_delta_pct": 4.0, "min_progress": 0.10, "div": False},
 }
 OF_BUCKETS = 40
 OF_LOOKBACK = 12
@@ -46,6 +46,21 @@ OF_ABS_DELTA, OF_ABS_VOL = 4.0, 1.2
 OF_STACK_RATIO, OF_STACK_N, OF_STACK_MIN_DELTA = 3.0, 3, 3.0
 OF_EXH_THIN = 0.05
 OF_DIV_MIN = 0.5
+OF_MAX_DELTA_PCT = 95.0     # |delta| اس سے اوپر ہو تو ڈیٹا پتلا سمجھ کر رد (لاگ میں -100% والے الرٹ)
+OPP_COOLDOWN_MS = 3 * 3600_000  # اسی کوائن پر مخالف سمت کا الرٹ حال ہی میں آیا ہو تو نیا الرٹ نہیں
+
+# ---------- Binance سپاٹ (data-api.binance.vision) ----------
+ENABLE_FUTURES = True       # OKX + Gate + Bitget فیوچرز
+ENABLE_SPOT = True          # Binance سپاٹ
+SPOT_COUNT = 200            # 24h والیوم میں پہلے اتنے USDT سپاٹ کوائنز
+SPOT_MIN_QUOTE_VOL = 5_000_000       # کم از کم 24h والیوم
+SPOT_DAILY_MIN_QUOTE_VOL = 10_000_000
+SPOT_MIN_BAR_USD = 150_000  # بار میں کم از کم ٹریڈ والیوم
+OF_MAX_TRADE_PAGES = 60     # aggTrades کے زیادہ سے زیادہ صفحے (ہر صفحہ 1000 ٹریڈز)
+OF_MIN_REAL_TRADES = 200
+OF_VOL_MATCH = (0.85, 1.25)  # aggTrades کا کل والیوم kline والیوم کے قریب ہو
+TOTAL_BUDGET_S = 400        # اس وقت کے بعد سپاٹ کی باقی جانچ چھوڑ دیں (ورک فلو 9-10 منٹ میں ختم ہو)
+RUN_T0 = time.time()
 
 MIN_COVERAGE = 0.85         # ٹریڈز کا بار میں مکمل ہونے کا کم از کم تناسب (والیوم وزن سے)
 BUCKET_MS = 300_000         # 5 منٹ کا خانہ
@@ -78,7 +93,8 @@ NFTY_OF_URL = os.environ.get("NFTY_OF_URL") or NFTY_URL
 # ============================================================
 HOSTS = {"okx": "https://www.okx.com",
          "gate": "https://api.gateio.ws/api/v4",
-         "bitget": "https://api.bitget.com"}
+         "bitget": "https://api.bitget.com",
+         "binance": "https://data-api.binance.vision"}
 
 
 class Limiter:
@@ -101,10 +117,11 @@ class Limiter:
 
 
 # سرکاری حدوں سے نیچے رکھی گئی ہیں (OKX history 10/s، Bitget 10/s، Gate 20/s)
-LIM = {"okx": Limiter(9), "gate": Limiter(12), "bitget": Limiter(8)}
+LIM = {"okx": Limiter(9), "gate": Limiter(12), "bitget": Limiter(8), "binance": Limiter(15)}
 session = requests.Session()
 stats = {"rate_limited": 0, "failed": 0, "gaps": 0, "low_cov": 0, "no_candles": 0,
-         "fetch_skipped": 0}
+         "fetch_skipped": 0, "blocked": 0, "spot_skipped": 0, "too_heavy": 0,
+         "mismatch": 0, "confirmed": 0, "rejected": 0, "unverified": 0}
 
 
 def safe_get(ex, path, params=None, timeout=15, retries=4):
@@ -118,6 +135,12 @@ def safe_get(ex, path, params=None, timeout=15, retries=4):
                 wait = min(int(r.headers.get("Retry-After", 2 ** (attempt + 1))), 30)
                 LIM[ex].penalize(wait)
                 continue
+            if r.status_code in (400, 451):
+                # غلط درخواست یا جغرافیائی پابندی: دوبارہ کوشش بے کار، وقت ضائع نہ کریں
+                stats["failed"] += 1
+                if r.status_code == 451:
+                    stats["blocked"] += 1
+                return None
             if r.status_code != 200:
                 time.sleep(1 + attempt)
                 continue
@@ -260,7 +283,7 @@ def load_universe():
     for i, u in enumerate(ranked):
         u["tier"] = 1 if i < len(selected_coins) else 2
         u["ref"] = max(u["ex"], key=lambda e: u["ex"][e]["qv"])
-    per_ex = {e: sum(1 for u in ranked if e in u["ex"]) for e in HOSTS}
+    per_ex = {e: sum(1 for u in ranked if e in u["ex"]) for e in ("okx", "gate", "bitget")}
     commodity_count = sum(1 for u in ranked if u["base"] in COMMODITY_BASES)
     print(f"یونیورس: {len(selected_coins)} لیکویڈ کوائنز + {commodity_count} دستیاب کموڈٹی ٹوکنز "
           f"(زیادہ سے زیادہ {TIER2_COUNT}) | ایکسچینج کوریج {per_ex}")
@@ -409,11 +432,11 @@ FETCHERS = {"okx": fetch_okx, "gate": fetch_gate, "bitget": fetch_bitget}
 # 🕯️ کینڈلز (صرف OHLC اور ریفرنس والیوم کے لیے؛ delta ٹریڈز سے آتا ہے)
 #    واپسی: [[t_ms, o, h, l, c, vol_usd], ...] پرانی سے نئی
 # ============================================================
-IV = {"5m": {"okx": "5m", "gate": "5m", "bitget": "5m"},
-      "15m": {"okx": "15m", "gate": "15m", "bitget": "15m"},
-      "1h": {"okx": "1H", "gate": "1h", "bitget": "1H"},
-      "4h": {"okx": "4H", "gate": "4h", "bitget": "4H"},
-      "1d": {"okx": "1Dutc", "gate": "1d", "bitget": "1Dutc"}}
+IV = {"5m": {"okx": "5m", "gate": "5m", "bitget": "5m", "binance": "5m"},
+      "15m": {"okx": "15m", "gate": "15m", "bitget": "15m", "binance": "15m"},
+      "1h": {"okx": "1H", "gate": "1h", "bitget": "1H", "binance": "1h"},
+      "4h": {"okx": "4H", "gate": "4h", "bitget": "4H", "binance": "4h"},
+      "1d": {"okx": "1Dutc", "gate": "1d", "bitget": "1Dutc", "binance": "1d"}}
 
 
 def get_candles(ex, cid, mult, interval, limit):
@@ -434,6 +457,13 @@ def get_candles(ex, cid, mult, interval, limit):
                 c = float(r["c"])
                 usd = float(r["sum"]) if r.get("sum") not in (None, "") else float(r["v"]) * mult * c
                 out.append([int(r["t"]) * 1000, float(r["o"]), float(r["h"]), float(r["l"]), c, usd])
+        elif ex == "binance":
+            d = safe_get("binance", "/api/v3/klines",
+                         {"symbol": cid, "interval": iv, "limit": min(limit, 1000)})
+            if not isinstance(d, list):
+                return None
+            for r in d:
+                out.append([int(r[0]), float(r[1]), float(r[2]), float(r[3]), float(r[4]), float(r[7])])
         else:
             d = safe_get("bitget", "/api/v2/mix/market/candles",
                          {"symbol": cid, "productType": "USDT-FUTURES", "granularity": iv, "limit": limit})
@@ -487,7 +517,7 @@ def prune_state(state, now_ms):
         bks = state["bk"][sym]
         for k in list(bks):
             kt = int(k)
-            if kt < old:
+        if kt < old:
                 del bks[k]
                 continue
             b = bks[k]
@@ -548,7 +578,6 @@ def bar_sum(state, sym, a, b):
 def bar_delta(state, sym, info, a, b):
     if coverage(state, sym, info, a, b) < MIN_COVERAGE:
         return None
-        
     buy, sell, _ = bar_sum(state, sym, a, b)
     return buy - sell if buy + sell > 0 else None
 
@@ -591,6 +620,8 @@ def eval_setups(hist, buy_usd, sell_usd, profile, tf, progress, prev_deltas):
     vol_ratio = v / (avg_vol * elapsed) if avg_vol > 0 else 0.0
     delta = buy_usd - sell_usd
     delta_pct = delta / tot_usd * 100
+    if abs(delta_pct) > OF_MAX_DELTA_PCT:
+        return None
     ratio = buy_usd / max(sell_usd, 1e-12)
     close_pos = (c - l) / (h - l)
 
@@ -644,7 +675,7 @@ def eval_setups(hist, buy_usd, sell_usd, profile, tf, progress, prev_deltas):
         if l <= pl and cvd[-1] - cvd[i_lo] >= margin and vol_ok:
             found["BULL"].append("Divergence")
 
-    if abs(delta_pct) >= OF_STACK_MIN_DELTA:
+    if abs(delta_pct) >= OF_STACK_MIN_DELTA and vol_ok:
         ok = tot >= 0.3 * tot.sum() / OF_BUCKETS
         if delta_pct > 0 and has_run(ok & (buy >= OF_STACK_RATIO * sell), OF_STACK_N):
             found["BULL"].append("Stacked Imbalance")
@@ -709,6 +740,220 @@ def check_orderflow(info, now_ms, state):
 
 
 # ============================================================
+# 🟡 Binance سپاٹ: delta اصل taker volume سے (klines)، footprint aggTrades سے
+#    delta / CVD: ہر کوائن پر مکمل اور اصل (taker buy quote volume، کوئی خلا نہیں)
+#    footprint: پہلے 1m/5m klines سے تخمینہ؛ 1h/4h میں سیٹ اپ بنے تو aggTrades سے اصل جانچ
+#    بہت بھاری کوائنز (BTC، ETH...) میں aggTrades کے صفحے کم پڑیں تو footprint "est" رہتا ہے
+# ============================================================
+SPOT_SUB = {"1h": "1m", "4h": "1m", "1d": "5m"}
+SPOT_VERIFY = {"1h": True, "4h": True, "1d": False}
+SPOT_SKIP_BASES = {"EUR", "GBP", "AEUR", "TRY", "BRL", "RLUSD", "XUSD", "UST", "USTC", "WBTC", "WBETH",
+                   "BFUSD", "USDS", "EURI"}
+
+
+def spot_klines(symbol, interval, limit, start_ms=None):
+    p = {"symbol": symbol, "interval": interval, "limit": limit}
+    if start_ms is not None:
+        p["startTime"] = int(start_ms)
+    return safe_get("binance", "/api/v3/klines", p)
+
+
+def load_spot_universe():
+    data = safe_get("binance", "/api/v3/exchangeInfo", timeout=30)
+    if not data or "symbols" not in data:
+        print("Binance سپاٹ: exchangeInfo نہیں ملا (بلاک یا ناکامی) — سپاٹ اس رن میں بند")
+        return []
+    valid = {}
+    for sy in data["symbols"]:
+        if sy.get("quoteAsset") != "USDT" or sy.get("status") != "TRADING":
+            continue
+        if not sy.get("isSpotTradingAllowed", True):
+            continue
+        base = sy.get("baseAsset", "")
+        if not base or base in STABLES or base in SPOT_SKIP_BASES:
+            continue
+        if base.endswith(("UP", "DOWN", "BULL", "BEAR")) and base not in ("JUP",):
+            continue
+        valid[sy["symbol"]] = base
+    tk = safe_get("binance", "/api/v3/ticker/24hr", timeout=30)
+    if not isinstance(tk, list):
+        print("Binance سپاٹ: ticker نہیں ملا — سپاٹ اس رن میں بند")
+        return []
+    rows = []
+    for t in tk:
+        sym = t.get("symbol")
+        if sym in valid:
+            qv = _f(t.get("quoteVolume"))
+            if qv >= SPOT_MIN_QUOTE_VOL:
+                rows.append((sym, qv, int(_f(t.get("count")))))
+    rows.sort(key=lambda x: x[1], reverse=True)
+    rows = rows[:SPOT_COUNT]
+    out = [{"symbol": sym, "label": valid[sym] + "-SPOT", "qvol": qv, "tcount": cnt, "tier": 1}
+           for sym, qv, cnt in rows]
+    print(f"Binance سپاٹ یونیورس: {len(out)} کوائنز")
+    return out
+
+
+def spot_profile_est(sub, lo, hi, nb):
+    step = (hi - lo) / nb
+    buy = np.zeros(nb)
+    sell = np.zeros(nb)
+    for k in sub:
+        l, h, qv, tb = float(k[3]), float(k[2]), float(k[7]), float(k[10])
+        i0 = min(max(int((l - lo) / step), 0), nb - 1)
+        i1 = min(max(int((h - lo) / step), 0), nb - 1)
+        if i1 < i0:
+            i1 = i0
+        n = i1 - i0 + 1
+        buy[i0:i1 + 1] += tb / n
+        sell[i0:i1 + 1] += (qv - tb) / n
+    return buy, sell
+
+
+def spot_profile_real(trades, lo, hi, nb):
+    # aggTrades: m=True کا مطلب خریدار maker، یعنی جارح فروخت
+    step = (hi - lo) / nb
+    n = len(trades)
+    p = np.fromiter((float(t["p"]) for t in trades), float, n)
+    q = np.fromiter((float(t["q"]) for t in trades), float, n)
+    w = p * q
+    is_buy = np.fromiter((not t["m"] for t in trades), bool, n)
+    idx = np.clip(((p - lo) / step).astype(int), 0, nb - 1)
+    buy = np.bincount(idx[is_buy], weights=w[is_buy], minlength=nb)
+    sell = np.bincount(idx[~is_buy], weights=w[~is_buy], minlength=nb)
+    return buy, sell
+
+
+def load_spot_trades(symbol, start_ms, end_ms):
+    trades = []
+    params = {"symbol": symbol, "startTime": int(start_ms), "limit": 1000}
+    for _ in range(OF_MAX_TRADE_PAGES):
+        data = safe_get("binance", "/api/v3/aggTrades", params)
+        if not isinstance(data, list):
+            return None
+        if not data:
+            return trades
+        for t in data:
+            if t["T"] >= end_ms:
+                return trades
+            trades.append(t)
+        if len(data) < 1000:
+            return trades
+        params = {"symbol": symbol, "fromId": data[-1]["a"] + 1, "limit": 1000}
+    stats["too_heavy"] += 1
+    return None
+
+
+def verify_spot(info, hist, buy_usd, sell_usd, start_ms, now_ms, tf, progress, prev_deltas):
+    tot = buy_usd + sell_usd
+    hi, lo = hist[-1][2], hist[-1][3]
+    if hi <= lo or tot <= 0:
+        return None
+        
+    est_trades = info["tcount"] * (now_ms - start_ms) / 86_400_000 if info["tcount"] else 0
+    if est_trades > OF_MAX_TRADE_PAGES * 1000 * 1.2:
+        stats["too_heavy"] += 1
+        return None
+    trades = load_spot_trades(info["symbol"], start_ms, int(time.time() * 1000))
+    if trades is None or len(trades) < OF_MIN_REAL_TRADES:
+        return None
+    qv = sum(float(t["p"]) * float(t["q"]) for t in trades)
+    if not (OF_VOL_MATCH[0] <= qv / tot <= OF_VOL_MATCH[1]):
+        stats["mismatch"] += 1
+        return None
+    return eval_setups(hist, buy_usd, sell_usd, spot_profile_real(trades, lo, hi, OF_BUCKETS),
+                       tf, progress, prev_deltas)
+
+
+def spot_all_sent(sent, label, tf, start_ms, found):
+    keys = [f"{label}|{tf}|{side}|{start_ms}|{n}" for side, names in found.items() for n in names]
+    return bool(keys) and all(k in sent for k in keys)
+
+
+def check_spot(info, now_ms, sent):
+    sym, label = info["symbol"], info["label"]
+    out = []
+    m1 = None
+    for tf, cfg in OF_TF.items():
+        if time.time() - RUN_T0 > TOTAL_BUDGET_S:
+            stats["spot_skipped"] += 1
+            break
+        mins = cfg["minutes"]
+        ms = mins * 60_000
+        start_ms = now_ms // ms * ms
+        progress = (now_ms - start_ms) / ms
+        if progress < cfg["min_progress"]:
+            continue
+        if tf == "1d" and info["qvol"] < SPOT_DAILY_MIN_QUOTE_VOL:
+            continue
+
+        raw = spot_klines(sym, tf, 21)
+        if not isinstance(raw, list) or len(raw) < 4 or int(raw[-1][0]) != start_ms:
+            stats["no_candles"] += 1
+            continue
+        tot = float(raw[-1][7])
+        buy_usd = float(raw[-1][10])
+        sell_usd = tot - buy_usd
+        if tot < SPOT_MIN_BAR_USD:
+            continue
+        hist = [[int(k[0]), float(k[1]), float(k[2]), float(k[3]), float(k[4]), float(k[7])] for k in raw]
+        hi, lo = hist[-1][2], hist[-1][3]
+        if hi <= lo:
+            continue
+
+        sub_iv = SPOT_SUB[tf]
+        sub_min = 1 if sub_iv == "1m" else 5
+        if sub_iv == "1m":
+            if m1 is None:
+                m1 = spot_klines(sym, "1m", 250)
+            allsub = m1
+        else:
+            allsub = spot_klines(sym, sub_iv, 300, start_ms=start_ms)
+        if not isinstance(allsub, list) or not allsub:
+            continue
+        sub = [k for k in allsub if int(k[0]) >= start_ms]
+        if len(sub) < max(5, int(progress * mins / sub_min * 0.9)):
+            continue
+
+        # CVD Divergence کے لیے پچھلی بارز کا اصل delta (taker buy - taker sell)
+        prev_deltas = None
+        if cfg["div"]:
+            prev_deltas = [2 * float(k[10]) - float(k[7]) for k in raw[:-1][-OF_LOOKBACK:]]
+
+        res = eval_setups(hist, buy_usd, sell_usd, spot_profile_est(sub, lo, hi, OF_BUCKETS),
+                          tf, progress, prev_deltas)
+        if not res:
+            continue
+        found, text = res
+        if not (found["BULL"] or found["BEAR"]):
+            continue
+
+        mode = "est"
+        if SPOT_VERIFY[tf]:
+            if spot_all_sent(sent, label, tf, start_ms, found):
+                continue
+            real = verify_spot(info, hist, buy_usd, sell_usd, start_ms, now_ms, tf, progress, prev_deltas)
+            if real is None:
+                stats["unverified"] += 1
+            else:
+                found, text = real
+                if not (found["BULL"] or found["BEAR"]):
+                    stats["rejected"] += 1
+                    print(f"   OF {label} {tf}: تخمینے سے بنا، اصل ٹریڈز پر رد")
+                    continue
+                mode = "real"
+                stats["confirmed"] += 1
+
+        tags = [f"{sd}:{'+'.join(nm)}" for sd, nm in found.items() if nm]
+        print(f"   OF {label} {tf} ({progress:.0%}) [{mode}]: {text} → {', '.join(tags)}")
+        refinfo = ("binance", sym, 1.0)
+        for side, names in found.items():
+            if names:
+                out.append((tf, side, hist[-1][4], names, start_ms, mode, refinfo))
+    return out
+
+
+# ============================================================
 # 📲 Ntfy
 # ============================================================
 def post_ntfy(title, body, tags="rotating_light", url=None, priority="high"):
@@ -722,27 +967,39 @@ def post_ntfy(title, body, tags="rotating_light", url=None, priority="high"):
         return False
 
 
-def run_orderflow(ranked, state):
+def run_orderflow(ranked, state, spot=()):
     now_ms = int(time.time() * 1000)
-    print(f"\nآرڈر فلو: {len(ranked)} کوائنز | ٹائم فریم {list(OF_TF)}")
+    print(f"\nآرڈر فلو: فیوچرز {len(ranked)} + سپاٹ {len(spot)} کوائنز | ٹائم فریم {list(OF_TF)}")
     sent_state = {k: v for k, v in load_json(OF_STATE_FILE).items()
                   if isinstance(v, (int, float)) and v >= now_ms - 2 * 24 * 3600 * 1000}
 
-    def work(info):
+    def work(item):
+        kind, info = item
         try:
-            return info, check_orderflow(info, now_ms, state)
+            if kind == "SPOT":
+                return item, check_spot(info, now_ms, sent_state)
+            return item, check_orderflow(info, now_ms, state)
         except Exception as e:
-            print(f"   OF {info['base']} error: {e}")
-            return info, []
+            print(f"   OF {info.get('base') or info.get('label')} error: {e}")
+            return item, []
 
+    items_all = [("FUT", u) for u in ranked] + [("SPOT", u) for u in spot]
     alerts = {}
     with ThreadPoolExecutor(max_workers=8) as ex:
-        for info, res in ex.map(work, ranked):
-            sym = info["base"]
+        for (kind, info), res in ex.map(work, items_all):
+            sym = info["label"] if kind == "SPOT" else info["base"]
+            # مخالف سمت کا الرٹ حال ہی میں بھیجا جا چکا ہو تو نیا الرٹ روک دیں
+            recent = {}
+            for k, v in sent_state.items():
+                p = k.split("|")
+                if len(p) >= 5 and p[0] == sym and v >= now_ms - OPP_COOLDOWN_MS:
+                    recent[p[2]] = True
             for tf, side, price, names, start_ms, mode, refinfo in res:
+                if recent.get("BEAR" if side == "BULL" else "BULL"):
+                    continue
                 new = [n for n in names if f"{sym}|{tf}|{side}|{start_ms}|{n}" not in sent_state]
                 if new:
-                    alerts.setdefault((tf, side), []).append(
+                    alerts.setdefault((tf, side, kind), []).append(
                         (sym, price, new, start_ms, mode, refinfo, info["tier"]))
 
     if not alerts:
@@ -751,13 +1008,15 @@ def run_orderflow(ranked, state):
         return
 
     to_track = []
-    for (tf, side), items in sorted(alerts.items()):
+    for (tf, side, kind), items in sorted(alerts.items()):
         name = "Bullish" if side == "BULL" else "Bearish"
+        venue = "Spot" if kind == "SPOT" else "Futures"
         for i in range(0, len(items), NTFY_CHUNK):
             chunk = items[i:i + NTFY_CHUNK]
-            lines = [f"{s} {fmt_price(p)} | {' + '.join(new)}{' (small)' if tier == 2 else ''}"
-                     for s, p, new, _, _, _, tier in chunk]
-            if post_ntfy(f"{tf.upper()} {name} Futures Order Flow", "\n".join(lines),
+            lines = [f"{s} {fmt_price(p)} | {' + '.join(new)}"
+                     f"{' (small)' if tier == 2 else ''}{' [est]' if md == 'est' else ''}"
+                     for s, p, new, _, md, _, tier in chunk]
+            if post_ntfy(f"{tf.upper()} {name} {venue} Order Flow", "\n".join(lines),
                          tags="green_circle" if side == "BULL" else "red_circle", url=NFTY_OF_URL):
                 for s, p, new, start_ms, mode, refinfo, _ in chunk:
                     for n in new:
@@ -793,6 +1052,7 @@ def register_of_trades(entries, now_ms):
                     idx[tid]["setups"].append(n)
             continue
         tr = {"id": tid, "symbol": sym, "tf": tf, "side": side, "setups": list(names),
+              "kind": "SPOT" if sym.endswith("-SPOT") else "FUT",
               "mode": mode, "entry": price, "ref": list(refinfo),
               "bar_start_ms": start_ms, "opened_ms": now_ms,
               "expires_ms": now_ms + OF_TRACK[tf]["hours"] * 3600 * 1000}
@@ -841,21 +1101,25 @@ def group_line(label, rows):
 
 def summary_text(closed):
     lines = []
-    for tf in OF_TF:
-        rows = [t for t in closed if t["tf"] == tf][-SUMMARY_LAST_N:]
-        if rows:
-            lines.append(group_line(tf, rows))
+    for kind in ("FUT", "SPOT"):
+        for tf in OF_TF:
+            rows = [t for t in closed
+                    if t["tf"] == tf and t.get("kind", "FUT") == kind][-SUMMARY_LAST_N:]
+            if rows:
+                lines.append(group_line(f"{kind} {tf}", rows))
     return "\n".join(lines) or "No closed trades yet"
 
 
 def setup_report(closed):
     names = sorted({n for t in closed for n in t["setups"]})
     lines = ["By setup (all kept results, * = small sample)"]
-    for tf in OF_TF:
-        for n in names:
-            rows = [t for t in closed if t["tf"] == tf and n in t["setups"]]
-            if rows:
-                lines.append(group_line(f"{tf} {n}", rows))
+    for kind in ("FUT", "SPOT"):
+        for tf in OF_TF:
+            for n in names:
+                rows = [t for t in closed
+                        if t["tf"] == tf and t.get("kind", "FUT") == kind and n in t["setups"]]
+                if rows:
+                    lines.append(group_line(f"{kind} {tf} {n}", rows))
     lines += ["", "By timeframe (last results)", summary_text(closed)]
     return "\n".join(lines)
 
@@ -934,6 +1198,9 @@ def selftest():
         c = get_candles(ex, d["id"], d["mult"], "1h", 3)
         print(f"[{ex}] کینڈلز: {c}")
 
+    k = safe_get("binance", "/api/v3/klines", {"symbol": "BTCUSDT", "interval": "1h", "limit": 2})
+    print(f"[binance سپاٹ] BTCUSDT klines (اندراج 7=quote vol، 10=taker buy quote): {k}")
+
 
 # ============================================================
 # 🎬 MAIN
@@ -949,11 +1216,12 @@ def main():
     t0 = time.time()
     start = datetime.now()
     print("=" * 60)
-    print(f"{start.strftime('%H:%M:%S')} | فیوچرز آرڈر فلو | OKX+Gate+Bitget")
+    print(f"{start.strftime('%H:%M:%S')} | فیوچرز آرڈر فلو | فیوچرز OKX+Gate+Bitget + سپاٹ Binance")
     print("=" * 60)
 
-    ranked = load_universe()
-    if not ranked:
+    ranked = load_universe() if ENABLE_FUTURES else []
+    spot = load_spot_universe() if ENABLE_SPOT else []
+    if not ranked and not spot:
         print("مارکیٹس نہیں ملیں")
         return
 
@@ -990,7 +1258,7 @@ def main():
 
     # 2) الرٹس
     try:
-        run_orderflow(ranked, state)
+        run_orderflow(ranked, state, spot)
     except Exception as e:
         print(f"آرڈر فلو error: {e}")
 
@@ -1008,3 +1276,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+        
