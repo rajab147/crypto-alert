@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 import requests
 
 TOP_N = int(os.getenv("TOP_N", "100"))
+DETAIL_N = int(os.getenv("DETAIL_N", "20"))
 MIN_TRADE_USD = float(os.getenv("MIN_TRADE_USD", "100000"))
 WALL_MIN_USD = float(os.getenv("WALL_MIN_USD", "500000"))
 WALL_DISTANCE_PCT = float(os.getenv("WALL_DISTANCE_PCT", "1.0"))
@@ -47,8 +48,15 @@ def send(title, body, tags="whale,chart_with_upwards_trend"):
         logging.error("NFTY_URL secret is missing.")
         return False
     try:
-        r = S.post(NFTY_URL, data=body.encode(), headers={
-            "Title": title[:250], "Tags": tags, "Priority": "high",
+        # HTTP header values must be ASCII/Latin-1 encodable in requests.
+        # Keep emoji in the UTF-8 body, but sanitize title/tags headers.
+        safe_title = title.encode("ascii", "ignore").decode("ascii").strip() or "Whale activity alert"
+        safe_tags = ",".join(
+            tag for tag in tags.split(",")
+            if tag and all(ch.isalnum() or ch in "_-" for ch in tag)
+        ) or "whale"
+        r = S.post(NFTY_URL, data=body.encode("utf-8"), headers={
+            "Title": safe_title[:250], "Tags": safe_tags, "Priority": "high",
             "Content-Type": "text/plain; charset=utf-8"
         }, timeout=12)
         if 200 <= r.status_code < 300:
@@ -86,7 +94,8 @@ def top_okx(market):
     for x in data.get("data", []):
         inst = x.get("instId", "")
         if (market == "spot" and inst.endswith("-USDT")) or (market == "futures" and inst.endswith("-USDT-SWAP")):
-            rows.append((inst, num(x.get("volCcy24h")) * num(x.get("last"))))
+            # For USDT spot pairs, vol24h is base-asset volume; multiply by last for approximate USDT turnover.
+            rows.append((inst, num(x.get("vol24h")) * num(x.get("last"))))
     rows.sort(key=lambda z: z[1], reverse=True)
     return [z[0] for z in rows[:TOP_N]]
 
@@ -205,7 +214,7 @@ def scan_detail(state, exchange, market, symbol):
 def main():
     started = time.time()
     logging.info("Whale scanner started at %s UTC", datetime.now(timezone.utc).isoformat())
-    logging.info("Thresholds: trade >= $%s, wall >= $%s, top N=%s", MIN_TRADE_USD, WALL_MIN_USD, TOP_N)
+    logging.info("Thresholds: trade >= $%s, wall >= $%s, top N=%s, detailed scan per market=%s", MIN_TRADE_USD, WALL_MIN_USD, TOP_N, DETAIL_N)
     if not NFTY_URL: logging.error("Set GitHub Secret NFTY_URL to your ntfy topic URL.")
     state, total_alerts, total_symbols = load_state(), 0, 0
     for exchange in ("binance", "okx", "bybit", "gateio", "bitget"):
@@ -216,7 +225,7 @@ def main():
             # Detailed large-trade and order-book checks currently use Binance and OKX APIs.
             # Other venues provide their own top-100 universe but are not detailed-scanned yet.
             if exchange not in ("binance", "okx"): continue
-            for symbol in symbols:
+            for symbol in symbols[:DETAIL_N]:
                 try: total_alerts += scan_detail(state, exchange, market, symbol)
                 except Exception as e: logging.warning("Scan failed %s %s %s: %s", exchange, market, symbol, e)
                 time.sleep(0.04)
@@ -225,3 +234,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
