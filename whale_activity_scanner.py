@@ -12,10 +12,14 @@ import requests
 
 TOP_N = int(os.getenv("TOP_N", "100"))
 DETAIL_N = int(os.getenv("DETAIL_N", "20"))
-MIN_TRADE_USD = float(os.getenv("MIN_TRADE_USD", "100000"))
-WALL_MIN_USD = float(os.getenv("WALL_MIN_USD", "500000"))
-WALL_DISTANCE_PCT = float(os.getenv("WALL_DISTANCE_PCT", "1.0"))
-COOLDOWN_MIN = int(os.getenv("ALERT_COOLDOWN_MIN", "30"))
+MIN_TRADE_USD = float(os.getenv("MIN_TRADE_USD", "500000"))
+WALL_MIN_USD = float(os.getenv("WALL_MIN_USD", "5000000"))
+WALL_DISTANCE_PCT = float(os.getenv("WALL_DISTANCE_PCT", "0.35"))
+COOLDOWN_MIN = int(os.getenv("ALERT_COOLDOWN_MIN", "180"))
+MIN_FLOW_USD = float(os.getenv("MIN_FLOW_USD", "1500000"))
+FLOW_RATIO = float(os.getenv("FLOW_RATIO", "3.0"))
+MIN_WALL_LEVELS = int(os.getenv("MIN_WALL_LEVELS", "2"))
+DETAIL_N = int(os.getenv("DETAIL_N", "20"))
 NFTY_URL = os.getenv("NFTY_URL", "").strip()
 STATE_FILE = "whale_scanner_state.json"
 S = requests.Session()
@@ -192,7 +196,7 @@ def scan_detail(state, exchange, market, symbol):
                     f"Recent large buy volume: ${buy:,.0f}\nRecent large sell volume: ${sell:,.0f}\n"
                     "Note: this does not identify the trader.")
             if once(state, k, f"🐋 {symbol} {biggest['side']} large trade", body): alerts += 1
-        dominant = "BUY" if buy > sell * 1.5 and buy > MIN_TRADE_USD else "SELL" if sell > buy * 1.5 and sell > MIN_TRADE_USD else ""
+        dominant = "BUY" if buy >= MIN_FLOW_USD and buy >= max(sell * FLOW_RATIO, MIN_FLOW_USD) else "SELL" if sell >= MIN_FLOW_USD and sell >= max(buy * FLOW_RATIO, MIN_FLOW_USD) else ""
         if dominant:
             k = key_for(f"{base}|flow|{dominant}|{int((buy+sell)//250000)}")
             body = f"⚡ WHALE-LIKE FLOW\n{exchange.upper()} {market.upper()} {symbol}\nLarge buy volume: ${buy:,.0f}\nLarge sell volume: ${sell:,.0f}"
@@ -201,20 +205,26 @@ def scan_detail(state, exchange, market, symbol):
         mid = (bids[0][0] + asks[0][0]) / 2
         for label, levels in (("BUY WALL", bids), ("SELL WALL", asks)):
             candidates = [x for x in levels if x[2] >= WALL_MIN_USD and mid > 0 and abs(x[0]-mid)/mid*100 <= WALL_DISTANCE_PCT]
-            if candidates:
+            # Strict filter: require multiple individually large levels on the same side.
+            if len(candidates) >= MIN_WALL_LEVELS:
                 wall = max(candidates, key=lambda x: x[2])
-                k = key_for(f"{base}|{label}|{round(wall[0], 6)}|{int(wall[2]//100000)}")
-                body = (f"📚 ORDER BOOK {label}\nExchange: {exchange.upper()}\nMarket: {market.upper()}\nPair: {symbol}\n"
-                        f"Wall price: {wall[0]:g}\nEstimated notional: ${wall[2]:,.0f}\n"
+                total_wall = sum(x[2] for x in candidates)
+                k = key_for(f"{base}|{label}|{round(wall[0], 6)}|{int(total_wall//1000000)}")
+                body = (f"📚 STRONG ORDER BOOK {label}\nExchange: {exchange.upper()}\nMarket: {market.upper()}\nPair: {symbol}\n"
+                        f"Largest level: ${wall[2]:,.0f}\nCombined qualifying levels: ${total_wall:,.0f}\n"
+                        f"Qualifying levels: {len(candidates)}\n"
                         f"Distance from mid: {abs(wall[0]-mid)/mid*100:.2f}%\n"
-                        "Warning: limit orders can be cancelled.")
-                if once(state, k, f"📚 {symbol} {label}", body): alerts += 1
+                        "Warning: limit orders can be cancelled; this is a snapshot, not confirmation.")
+                if once(state, k, f"STRONG {symbol} {label}", body): alerts += 1
     return alerts
 
 def main():
     started = time.time()
     logging.info("Whale scanner started at %s UTC", datetime.now(timezone.utc).isoformat())
-    logging.info("Thresholds: trade >= $%s, wall >= $%s, top N=%s, detailed scan per market=%s", MIN_TRADE_USD, WALL_MIN_USD, TOP_N, DETAIL_N)
+    logging.info(
+        "Strict thresholds: trade >= $%s, wall >= $%s within %.2f%%, flow >= $%s ratio >= %.1f, cooldown=%sm, top N=%s, detail N=%s",
+        MIN_TRADE_USD, WALL_MIN_USD, WALL_DISTANCE_PCT, MIN_FLOW_USD, FLOW_RATIO, COOLDOWN_MIN, TOP_N, DETAIL_N
+    )
     if not NFTY_URL: logging.error("Set GitHub Secret NFTY_URL to your ntfy topic URL.")
     state, total_alerts, total_symbols = load_state(), 0, 0
     for exchange in ("binance", "okx", "bybit", "gateio", "bitget"):
@@ -234,4 +244,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-    
+        
