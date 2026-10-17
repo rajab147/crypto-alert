@@ -37,11 +37,14 @@ jobs:
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           TOP_N: "100"
-          MIN_TRADE_USD: "100000"
-          WALL_MIN_USD: "500000"
-          WALL_DISTANCE_PCT: "1.0"
-          ALERT_COOLDOWN_MIN: "30"
-
+          DETAIL_N: "20"
+          MIN_TRADE_USD: "500000"
+          WALL_MIN_USD: "5000000"
+          WALL_DISTANCE_PCT: "0.35"
+          MIN_FLOW_USD: "1500000"
+          FLOW_RATIO: "3.0"
+          MIN_WALL_LEVELS: "2"
+          ALERT_COOLDOWN_MIN: "180"
         run: python whale_activity_scanner.py
 
       - name: Save scanner state
