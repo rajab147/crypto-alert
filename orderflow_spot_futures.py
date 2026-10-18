@@ -34,8 +34,8 @@ COMMODITY_BASES = {
 }
 
 OF_TF = {
-    "1h": {"minutes": 60,   "min_delta_pct": 6.0, "min_progress": 0.35, "div": True},
-    "4h": {"minutes": 240,  "min_delta_pct": 5.0, "min_progress": 0.15, "div": True},
+    "1h": {"minutes": 60,   "min_delta_pct": 6.0, "min_progress": 0.25, "div": True},
+    "4h": {"minutes": 240,  "min_delta_pct": 5.0, "min_progress": 0.10, "div": True},
     "1d": {"minutes": 1440, "min_delta_pct": 4.0, "min_progress": 0.10, "div": False},
 }
 OF_BUCKETS = 40
