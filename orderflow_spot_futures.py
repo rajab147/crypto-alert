@@ -59,7 +59,7 @@ CVD_RT_MIN_BARS = 4
 CVD_RT_S_LOOKBACK_H = 30
 CVD_RT_RECENT_FLOW_MS = 30 * 60_000
 
-# Legacy CVD (kept for optional old setups; disabled by default)
+# Legacy CVD (disabled by default)
 CVD_BAR_TFS = {"30m": 30, "1h": 60, "4h": 240}
 CVD_TOUCH = 1.0
 CVD_OVER = 0.5
@@ -492,10 +492,10 @@ def get_candles(ex, cid, mult, interval, limit):
         print(f"candles parse error {ex} {cid}: {e}")
         return None
     return out
-  
+    
 
 # ============================================================
-# Flow state: 5-minute buckets + coverage
+# Flow state
 # ============================================================
 def ingest(state, sym, ex, items, gap, now_ms):
     key = f"{ex}|{sym}"
@@ -714,7 +714,7 @@ def eval_setups(hist, buy_usd, sell_usd, profile, tf, progress, prev_deltas, vol
 
 
 # ============================================================
-# CVD anchor + legacy analysis
+# CVD anchor + legacy
 # ============================================================
 def cvd_anchor(now_ms):
     return now_ms // 86_400_000 * 86_400_000
@@ -1055,7 +1055,8 @@ def fut_setups(info, state, tf, cfg, now_ms):
         prev_deltas = None
 
     res = eval_setups(hist, buy_usd, sell_usd,
-             
+                      build_profile_real(bins, p_lo
+                                         
 
 # ============================================================
 # Binance spot
@@ -1076,7 +1077,7 @@ def spot_klines(symbol, interval, limit, start_ms=None):
 def load_spot_universe():
     data = safe_get("binance", "/api/v3/exchangeInfo", timeout=30)
     if not data or "symbols" not in data:
-        print("Binance spot: exchangeInfo not received (blocked or failed) - spot disabled this run")
+        print("Binance spot: exchangeInfo not received - spot disabled this run")
         return []
     valid = {}
     for sy in data["symbols"]:
@@ -1315,7 +1316,6 @@ def check_spot(info, now_ms, sent, state):
                 print(f"   OF {label} {tf} [real]: CVD zero line rejection (closed bar) -> {side}:CVD Retest")
                 out.append((tf, side, px, ["CVD Retest"], start_ms, "real", refinfo, "+"))
 
-    # CVD zero line - real-time touch (spot)
     if CVD_RT_ENABLE:
         s5 = spot_steps5(info, now_ms, cache)
         if s5:
@@ -1407,10 +1407,10 @@ def run_orderflow(ranked, state, spot=()):
         register_of_trades(to_track, now_ms, btc)
     except Exception as e:
         print(f"Tracker registration error: {e}")
-
+        
 
 # ============================================================
-# Tracker: MFE / MAE / end direction
+# Tracker
 # ============================================================
 def load_book():
     d = load_json(TRADES_FILE)
@@ -1555,4 +1555,173 @@ def regime_report(closed):
             for rg, arrow in (("up", "BTC^"), ("down", "BTCv")):
                 rows = [t for t in closed if t["tf"] == tf and t["side"] == side and t.get("btc") == rg]
                 if rows:
-  
+                    lines.append(group_line(f"{tf} {nm} {arrow}", rows))
+    return "\n".join(lines)
+
+
+def post_long(title, text, **kw):
+    chunks, cur = [], ""
+    for line in text.split("\n"):
+        if len(cur) + len(line) + 1 > 3300 and cur:
+            chunks.append(cur)
+            cur = ""
+        cur += line + "\n"
+    if cur.strip():
+        chunks.append(cur)
+    ok = True
+    for i, c in enumerate(chunks, 1):
+        t = title if len(chunks) == 1 else f"{title} ({i}/{len(chunks)})"
+        ok = post_ntfy(t, c.rstrip("\n"), **kw) and ok
+    return ok
+
+
+def result_line(t):
+    side = "Bull" if t["side"] == "BULL" else "Bear"
+    return (f"{t['symbol']} {t['tf']} {side} {'+'.join(t['setups'])} | "
+            f"MFE +{t['mfe_pct']:.1f}% MAE -{t['mae_pct']:.1f}% | end {t['ret_pct']:+.1f}%")
+
+
+def track_of_trades():
+    book = load_book()
+    now_ms = int(time.time() * 1000)
+    print(f"\nTracker: {len(book['open'])} open | {len(book['closed'])} closed")
+    still, newly = [], []
+    for tr in book["open"]:
+        try:
+            res = evaluate_of_trade(tr, now_ms)
+        except Exception as e:
+            print(f"   {tr['symbol']} tracker error: {e}")
+            res = None
+        if res is None:
+            still.append(tr)
+        elif res == "DROP":
+            print(f"   {tr['symbol']} {tr['tf']}: no data, entry dropped")
+        else:
+            newly.append(dict(tr, **res))
+            print(f"   {result_line(newly[-1])}")
+    book["open"] = still
+    book["closed"] = (book["closed"] + newly)[-MAX_CLOSED_KEEP:]
+
+    if newly:
+        lines = [result_line(t) for t in newly[:15]]
+        if len(newly) > 15:
+            lines.append(f"+{len(newly) - 15} more")
+        body = "\n".join(lines) + f"\nopen now: {len(still)}\n" + summary_text(book["closed"])
+        post_ntfy(f"OF results: {len(newly)} closed", body, tags="bar_chart",
+                  url=NFTY_OF_URL, priority="default")
+    today = now_ms // 86_400_000
+    if book["closed"] and book.get("last_report_day") != today:
+        if post_long("OF daily report", setup_report(book["closed"]),
+                     tags="chart_with_upwards_trend", url=NFTY_OF_URL, priority="default"):
+            book["last_report_day"] = today
+    save_json(TRADES_FILE, book)
+
+
+def print_coverage(ranked, state, now_ms):
+    a = now_ms // 3_600_000 * 3_600_000
+    print("\nCoverage (current 1h bar, busiest coins):")
+    for u in ranked[:12]:
+        sym = u["base"]
+        parts = [f"{ex} {coverage(state, sym, {'ex': {ex: d}}, a, now_ms):.0%}"
+                 for ex, d in u["ex"].items()]
+        print(f"   {sym}: total {coverage(state, sym, u, a, now_ms):.0%} | " + " ".join(parts))
+
+
+# ============================================================
+# selftest
+# ============================================================
+def selftest():
+    ranked = load_universe()
+    btc = next((u for u in ranked if u["base"] == "BTC"), None)
+    if not btc:
+        print("BTC not found in universe")
+        return
+    now_ms = int(time.time() * 1000)
+    for ex, d in btc["ex"].items():
+        r = FETCHERS[ex](d, None, now_ms)
+        if r is None:
+            print(f"[{ex}] trades: failed")
+        else:
+            items, _ = r
+            print(f"[{ex}] trades: {len(items)} | last 2: {items[-2:]}")
+        c = get_candles(ex, d["id"], d["mult"], "1h", 3)
+        print(f"[{ex}] candles: {c}")
+
+    k = safe_get("binance", "/api/v3/klines", {"symbol": "BTCUSDT", "interval": "1h", "limit": 2})
+    print(f"[binance spot] BTCUSDT klines (idx 7=quote vol, 10=taker buy quote): {k}")
+
+
+# ============================================================
+# MAIN
+# ============================================================
+def main():
+    if "--selftest" in sys.argv:
+        selftest()
+        return
+    if not NFTY_URL:
+        print("NFTY_URL not set")
+        raise SystemExit(1)
+
+    t0 = time.time()
+    start = datetime.now()
+    print("=" * 60)
+    print(f"{start.strftime('%H:%M:%S')} | Futures order flow | OKX+Gate+Bitget futures + Binance spot")
+    print("=" * 60)
+
+    ranked = load_universe() if ENABLE_FUTURES else []
+    spot = load_spot_universe() if ENABLE_SPOT else []
+    if not ranked and not spot:
+        print("No markets found")
+        return
+
+    state = load_gz(FLOW_FILE)
+    for k in ("cur", "gaps", "bk"):
+        state.setdefault(k, {})
+    state.setdefault("cvd_rt", {})
+
+    now_ms = int(time.time() * 1000)
+    jobs = [(u["base"], ex, d) for u in ranked for ex, d in u["ex"].items()]
+    print(f"Trades: {len(jobs)} (exchange x coin) requests")
+
+    def fetch(job):
+        sym, ex, d = job
+        if time.time() - t0 > FETCH_BUDGET_S:
+            stats["fetch_skipped"] += 1
+            return job, "SKIP"
+        try:
+            return job, FETCHERS[ex](d, state["cur"].get(f"{ex}|{sym}"), now_ms)
+        except Exception as e:
+            print(f"   {ex} {sym} fetch error: {e}")
+            return job, None
+
+    with ThreadPoolExecutor(max_workers=12) as pool:
+        for (sym, ex, d), res in pool.map(fetch, jobs):
+            if res is None or res == "SKIP":
+                continue
+            items, gap = res
+            ingest(state, sym, ex, items, gap, now_ms)
+
+    prune_state(state, now_ms)
+    save_gz(FLOW_FILE, state)
+    print(f"Trades done: {time.time() - t0:.0f}s")
+
+    try:
+        run_orderflow(ranked, state, spot)
+    except Exception as e:
+        print(f"Order flow error: {e}")
+
+    print_coverage(ranked, state, int(time.time() * 1000))
+
+    try:
+        track_of_trades()
+    except Exception as e:
+        print(f"Tracker error: {e}")
+
+    print(f"\nStats: {stats}")
+    print(f"Done: {(datetime.now() - start).total_seconds():.0f}s")
+
+
+if __name__ == "__main__":
+    main()
+                                         
+    
