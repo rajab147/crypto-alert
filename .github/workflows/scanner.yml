@@ -12,7 +12,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 16          # ← 10 سے 16 (رن 9-10 منٹ لیتا ہے، buffer چاہیے)
+    timeout-minutes: 16          # ← 10 سے 16 (تاکہ ٹائم آؤٹ کا مسئلہ نہ ہو)
 
     steps:
       - uses: actions/checkout@v4
@@ -20,12 +20,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"           # ← pip cache (ہر رن 30s بچے گا)
+          cache: "pip"           # ← pip کیچ آن کر دی ہے
 
       - name: Install dependencies
-        run: pip install --no-cache-dir requests numpy
+        run: pip install requests numpy   # ← --no-cache-dir ہٹا دیا تاکہ کیچ کام کرے
 
-      # state فائلیں رنز کے درمیان محفوظ — key اور path نہ بدلیں
+      # state فائلیں رنز کے درمیان محفوظ رکھنے کے لیے
       - uses: actions/cache@v4
         id: state-cache
         with:
@@ -43,8 +43,7 @@ jobs:
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
         run: python orderflow_spot_futures.py
 
-      # 🆕 اگر رن کامیاب ہوا تو state کو فوراً نئی key سے محفوظ کرو
-      #    (timeout/error پر پرانی cache برقرار رہے گی — corrupt نہیں ہوگی)
+      # اگر رن کامیاب ہوا تو state کو فوراً نئی key سے محفوظ کرو
       - name: Save state snapshot
         if: success()
         uses: actions/cache/save@v4
