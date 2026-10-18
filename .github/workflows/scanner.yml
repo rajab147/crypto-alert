@@ -12,27 +12,45 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 16          # ← 10 سے 16 (رن 9-10 منٹ لیتا ہے، buffer چاہیے)
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install requests numpy
+          cache: "pip"           # ← pip cache (ہر رن 30s بچے گا)
 
-      # state فائلیں رنز کے درمیان محفوظ رکھنے کے لیے (key اور path نہ بدلیں، ورنہ ٹریکر کی ہسٹری مٹ جائے گی)
+      - name: Install dependencies
+        run: pip install --no-cache-dir requests numpy
+
+      # state فائلیں رنز کے درمیان محفوظ — key اور path نہ بدلیں
       - uses: actions/cache@v4
+        id: state-cache
         with:
           path: |
             flow_state.json.gz
             orderflow_state.json
             trades_state.json
           key: of-state-${{ github.run_id }}
-          restore-keys: of-state-
+          restore-keys: |
+            of-state-
 
       - name: Run scanner
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
         run: python orderflow_spot_futures.py
-        
+
+      # 🆕 اگر رن کامیاب ہوا تو state کو فوراً نئی key سے محفوظ کرو
+      #    (timeout/error پر پرانی cache برقرار رہے گی — corrupt نہیں ہوگی)
+      - name: Save state snapshot
+        if: success()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            flow_state.json.gz
+            orderflow_state.json
+            trades_state.json
+          key: of-state-${{ github.run_id }}-saved
