@@ -1,58 +1,50 @@
-name: OrderFlow Scanner + Tracker
+name: Orderflow Spot
 
 on:
   schedule:
-    - cron: "*/15 * * * *"      # ہر 15 منٹ (سکینر کی SCAN_MINUTES کے مطابق)
+    - cron: "*/10 * * * *"   # ہر 10 منٹ بعد
   workflow_dispatch:
 
+permissions:
+  contents: write            # state فائلیں واپس کمٹ کرنے کے لیے
+
+# ایک وقت میں ایک ہی رن (state فائلوں کا ٹکراؤ نہ ہو)
 concurrency:
   group: orderflow
   cancel-in-progress: false
 
 jobs:
-  scan:
+  run:
     runs-on: ubuntu-latest
-    timeout-minutes: 14
-
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
-          cache: "pip"
+          python-version: "3.11"
+          cache: pip
 
       - name: Install dependencies
-        run: |
-          pip install requests numpy pandas
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        run: pip install requests numpy
 
-      # پچھلی state فائلیں بحال کریں (سب سے نئی کیش)
-      - name: Restore state
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            signal_state.json
-            orderflow_state.json
-            trades_state.json
-          key: of-state-${{ github.run_id }}
-          restore-keys: |
-            of-state-
-
-      - name: Run scanner
+      - name: Run orderflow
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python OrderFlow_Scanner_Tracker-2.py
+        run: python orderflow_spot_futures.py
 
-      # رن ناکام بھی ہو تو state محفوظ کریں تاکہ کھلی ٹریڈز ضائع نہ ہوں
       - name: Save state
         if: always()
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            signal_state.json
-            orderflow_state.json
-            trades_state.json
-          key: of-state-${{ github.run_id }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f flow_state.json.gz orderflow_state.json trades_state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "no state changes"
+          else
+            git commit -m "state: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase -X theirs origin "${GITHUB_REF_NAME}" || true
+            git push || true
+          fi
           
