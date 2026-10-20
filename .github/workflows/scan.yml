@@ -34,8 +34,8 @@ jobs:
           restore-keys: cvd-state-
 
       - name: Run scanner
-        run: python cvd_zero_touch.py 
-        
+        run: python cvd_zero_touch.py --once
+        env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
 
       - name: Save state
@@ -44,3 +44,4 @@ jobs:
         with:
           path: cvd_zero_touch_state.json
           key: cvd-state-${{ github.run_id }}
+          
