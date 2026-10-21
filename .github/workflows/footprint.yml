@@ -1,3 +1,4 @@
+- name: Install dependencies  run: pip install requests numpy
 # Configuration reference for CVD_ZeroLine_Original_OrderFlow_4H.py
 # Note: the current Python script uses these values as constants; it does not
 # automatically read this YAML file unless YAML-loading support is added.
@@ -51,3 +52,4 @@ original_order_flow:
 binance:
   base_url: https://data-api.binance.vision
   # Public market data only; no API key is required for these endpoints.
+  
