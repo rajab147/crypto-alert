@@ -1,0 +1,23 @@
+name: Footprint CVD
+
+on:
+  workflow_dispatch:        # Actions ٹیب سے "Run workflow" بٹن
+  schedule:
+    - cron: "5 */4 * * *"   # ہر 4 گھنٹے بعد (UTC 00:05, 04:05 ...)
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install requests pyyaml
+      - run: python footprint_cvd.py --config config.yaml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: footprint_cvd
+          path: footprint_cvd.json
+          
