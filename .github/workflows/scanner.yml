@@ -34,7 +34,7 @@ jobs:
       - name: Run CVD scanner
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
-        run: python CVD_Scanner_V4.py
+        run: python CVD_Scanner_V5.py
 
       - name: Save state
         if: always()
