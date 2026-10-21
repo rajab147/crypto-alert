@@ -1,55 +1,36 @@
-- name: Install dependencies  run: pip install requests numpy
-# Configuration reference for CVD_ZeroLine_Original_OrderFlow_4H.py
-# Note: the current Python script uses these values as constants; it does not
-# automatically read this YAML file unless YAML-loading support is added.
+name: footprint
 
-notifications:
-  # Set NFTY_URL as an environment variable before starting the script.
-  ntfy_url_env: NFTY_URL
-  # Optional separate topic URL for Order Flow notifications.
-  orderflow_ntfy_url_env: NFTY_OF_URL
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
 
-cvd_zero_line:
-  timeframe: 1h
-  lower_timeframe: 1m
-  coin_count: 300
-  history_hours: 24
-  zero_touch_tolerance: 0.03
-  fresh_minutes: 20
-  skip_first_minutes: 60
-  run_window_hours: 4
-  moved_range_multiplier: 2.5
-  min_retrace: 0.35
-  threads: 12
-  ntfy_max_bytes: 3500
-  state_file: cvd_zero_touch_state.json
+permissions:
+  contents: write
 
-original_order_flow:
-  timeframe: 4h
-  min_delta_percent: 5.0
-  min_progress: 0.10
-  max_move_from_open_percent: 0.45
-  max_range_average_multiplier: 0.85
-  max_lookback_move_percent: 1.20
-  footprint_buckets: 40
-  lookback_bars: 12
-  poc_bull_threshold: 0.60
-  poc_bear_threshold: 0.40
-  close_bull_threshold: 0.65
-  close_bear_threshold: 0.35
-  volume_multiplier: 1.0
-  absorption_delta_threshold: 4.0
-  absorption_volume_threshold: 1.2
-  stacked_imbalance_ratio: 3.0
-  stacked_imbalance_levels: 3
-  stacked_imbalance_min_delta: 3.0
-  exhaustion_thin_threshold: 0.05
-  divergence_minimum: 0.5
-  coin_count: 60
-  max_aggtrade_pages: 80
-  state_file: orderflow_4h_state.json
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-binance:
-  base_url: https://data-api.binance.vision
-  # Public market data only; no API key is required for these endpoints.
-  
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests numpy
+
+      - name: Run scanner
+        env:
+          NFTY_URL: ${{ secrets.NFTY_URL }}
+          NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
+        run: python "CVD_ZeroLine_Original_OrderFlow_4H (1).py"
+
+      - name: Save state files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add *.json || true
+          git commit -m "update state" || echo "no changes"
+          git push || true
