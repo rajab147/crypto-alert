@@ -1,0 +1,17 @@
+symbols: [BTCUSDT, ETHUSDT]
+window_hours: 8              # 4 کا multiple (8 = 2 بارز)
+workers: 1                   # aggTrades بھاری ہیں، 1-2 رکھیں
+output_file: footprint_cvd.json
+
+# Footprint
+ticks_per_level: 10          # ہر price level = 10 ticks
+ticks_per_level_by_symbol: {}   # مثال: {BTCUSDT: 100}
+imbalance_ratio: 3.0         # 300%
+imbalance_min_volume: 0
+stacked_min_levels: 3
+value_area_pct: 0.70
+
+# CVD Zero Line
+zero_tolerance_abs: 0
+zero_tolerance_pct_of_4h_volume: 0.01
+require_departure: true
