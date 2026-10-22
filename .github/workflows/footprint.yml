@@ -8,9 +8,14 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: footprint
+  cancel-in-progress: false
+
 jobs:
   run:
     runs-on: ubuntu-latest
+    timeout-minutes: 9
     steps:
       - uses: actions/checkout@v4
 
@@ -25,7 +30,7 @@ jobs:
         env:
           NFTY_URL: ${{ secrets.NFTY_URL }}
           NFTY_OF_URL: ${{ secrets.NFTY_OF_URL }}
-        run: python "CVD_ZeroLine_Original_OrderFlow_4H (1).py"
+        run: python orderflow_4h.py
 
       - name: Save state files
         run: |
@@ -33,4 +38,5 @@ jobs:
           git config user.email "actions@github.com"
           git add *.json || true
           git commit -m "update state" || echo "no changes"
+          git pull --rebase || true
           git push || true
