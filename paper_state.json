@@ -1,0 +1,1334 @@
+{
+  "balance": 1938.13063501041,
+  "positions": {
+    "BTCUSDT": {
+      "entry_price": 80628.01,
+      "entry_time": 1792941567.6165395,
+      "size": 100.0,
+      "unrealized_pnl": 0.0
+    }
+  },
+  "day": "2026-10-25",
+  "alerts_today": 15,
+  "last_entry_alert": {
+    "BTCUSDT": 1792930281.6905584,
+    "ETHUSDT": 1792930299.6944127,
+    "SOLUSDT": 1792930308.6974654,
+    "BNBUSDT": 1792930692.8051867
+  },
+  "today_trades": [
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.189739
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.207458
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pnl": -0.298764
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.152058
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.199988
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.210778
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.188014
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.197433
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.143513
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.182701
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pnl": -0.259335
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.401818
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.161054
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.205246
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.217414
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.244879
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.174705
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200429
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200858
+    },
+    {
+      "symbol": "WLDUSDT",
+      "pnl": -0.266853
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.197688
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.17255
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.215446
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.187906
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.154774
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.181148
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.16534
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.179518
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.135305
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.196273
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.182434
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.206298
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.168316
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.143045
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.177158
+    },
+    {
+      "symbol": "SUIUSDT",
+      "pnl": -0.243529
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pnl": -0.259335
+    },
+    {
+      "symbol": "SUIUSDT",
+      "pnl": -0.23264
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.160398
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.19358
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.194436
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.187588
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.178454
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200856
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "XRPUSDT",
+      "pnl": -0.2308
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.181601
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.182936
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.195107
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.204279
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.148229
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.182039
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.189458
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.164939
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.187087
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.156747
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.197653
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.192729
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.216487
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.161484
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.193379
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.186737
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.147807
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.188027
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.182896
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.179052
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.212395
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.195725
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.579085
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.173907
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.194012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.206415
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.168772
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.193156
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.133701
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200427
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.176683
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.203424
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "UNIUSDT",
+      "pnl": -0.244492
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.203218
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.218838
+    },
+    {
+      "symbol": "UNIUSDT",
+      "pnl": -0.170312
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "XRPUSDT",
+      "pnl": -0.246257
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.204813
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.182019
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.213499
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.213308
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.149785
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.180272
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.191476
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.17105
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.170438
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.170559
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pnl": -0.18021
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.188868
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.167043
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.192778
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.156101
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.114837
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.052889
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.11517
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.279852
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.208551
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.170927
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.17863
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.182623
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.16614
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.202497
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200428
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.213987
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.207269
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.167919
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.205789
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.23634
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.220514
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.190162
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.185885
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200427
+    },
+    {
+      "symbol": "BMTUSDT",
+      "pnl": -0.135003
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.172537
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.19829
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.159338
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.165344
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.182599
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.194817
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.2225
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.17946
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.204188
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.186735
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.19187
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.225249
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.190579
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.180301
+    },
+    {
+      "symbol": "XAUTUSDT",
+      "pnl": -0.20025
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.192553
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.195721
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.192554
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.217541
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.207708
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.209422
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.202998
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.209404
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.167075
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.099252
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.206417
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.224814
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.147655
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.201285
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.196492
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.170871
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.197935
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200857
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.179442
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.175136
+    },
+    {
+      "symbol": "LTCUSDT",
+      "pnl": -0.465833
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.196643
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.193145
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.192564
+    },
+    {
+      "symbol": "XRPUSDT",
+      "pnl": -0.21545
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.188006
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.178777
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.223126
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.18943
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.170172
+    },
+    {
+      "symbol": "WLDUSDT",
+      "pnl": -0.2
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.14312
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.198718
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.188886
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.168908
+    },
+    {
+      "symbol": "XRPUSDT",
+      "pnl": -0.107471
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.185519
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.181915
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.221785
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.205125
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.157717
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.125532
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.158612
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.187099
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.205121
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.042754
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.151333
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.229761
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.198348
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.175439
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.350285
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.195051
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.191308
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.305592
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.210366
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.214082
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.137071
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.218763
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.217354
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200427
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.174828
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.189095
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": -0.100448
+    },
+    {
+      "symbol": "XRPUSDT",
+      "pnl": -0.2
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.171937
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.311286
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": -0.150249
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.210718
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": -0.448755
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200426
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.190935
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.165466
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.207246
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.043392
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.151326
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.128805
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": 0.347261
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.220447
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.206587
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.183534
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.128849
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": 0.715899
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pnl": -0.190164
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.097392
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.30187
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.179357
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.231919
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.121892
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.240377
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.190569
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.160477
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.169743
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": 0.062538
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.187922
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.20767
+    },
+    {
+      "symbol": "XRPUSDT",
+      "pnl": -0.192316
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.028745
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.158105
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.244299
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": -0.101285
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.158969
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": 0.008908
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pnl": -0.307968
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.151525
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.20162
+    },
+    {
+      "symbol": "WLDUSDT",
+      "pnl": -0.549912
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200852
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.196945
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.207238
+    },
+    {
+      "symbol": "WLDUSDT",
+      "pnl": -0.156098
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.000156
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.196166
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": -0.545504
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.204094
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200852
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.173135
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.094592
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.190195
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.111101
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.202984
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.149684
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.16548
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.175288
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.193183
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.197512
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.191476
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.20554
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.196164
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.163921
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.197215
+    },
+    {
+      "symbol": "SOLUSDT",
+      "pnl": -0.22946
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.256689
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": -0.545163
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.209803
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.176558
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.194368
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.191898
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.310754
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.173567
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200426
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.183807
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.175313
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": 0.294065
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.16591
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.195049
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.244233
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.202984
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.196286
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.208532
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.218905
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": -0.155777
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.170992
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200012
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.200427
+    },
+    {
+      "symbol": "ENAUSDT",
+      "pnl": -0.101479
+    }
+  ],
+  "saved_at": "2026-10-25T15:19:28.000845+00:00"
+}
