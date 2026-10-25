@@ -98,9 +98,9 @@ CONFIG: dict[str, Any] = {
     "fee_bps_per_side": 10.0,
 }
 
-TICKER_URL = "https://api.binance.com/api/v3/ticker/24hr"
-INFO_URL = "https://api.binance.com/api/v3/exchangeInfo"
-WS_BASE = "wss://stream.binance.com:9443/stream"
+TICKER_URL = "https://data-api.binance.vision/api/v3/ticker/24hr"
+INFO_URL =  "https://data-api.binance.vision/api/v3/exchangeInfo"
+WS_BASE =  "wss://data-stream.binance.vision/stream"
 STATE_FILE = "paper_state.json"
 TRADES_FILE = "paper_trades.jsonl"
 LOG_FILE = "orderflow.log"
