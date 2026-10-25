@@ -1,14 +1,24 @@
 {
-  "balance": 1936.149743931863,
-  "positions": {},
+  "balance": 1927.5624499243181,
+  "positions": {
+    "BTCUSDT": {
+      "entry_price": 80350.01,
+      "entry_time": 1792965087.1659577,
+      "size": 100.0,
+      "unrealized_pnl": 0.03983820288262496
+    }
+  },
   "day": "2026-10-25",
-  "alerts_today": 26,
+  "alerts_today": 50,
   "last_entry_alert": {
-    "BTCUSDT": 1792943154.7895727,
-    "ETHUSDT": 1792942749.693717,
+    "BTCUSDT": 1792946362.7862973,
+    "ETHUSDT": 1792947311.0030756,
     "SOLUSDT": 1792930308.6974654,
     "BNBUSDT": 1792943913.969345,
-    "ZECUSDT": 1792942791.7017925
+    "ZECUSDT": 1792947241.985342,
+    "SUIUSDT": 1792947187.9740083,
+    "NEARUSDT": 1792947205.9791286,
+    "TRXUSDT": 1792947662.0857306
   },
   "today_trades": [
     {
@@ -1350,7 +1360,211 @@
     {
       "symbol": "ETHUSDT",
       "pnl": -0.168924
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.241985
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.095817
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.175626
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.113519
+    },
+    {
+      "symbol": "SUIUSDT",
+      "pnl": 0.123441
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": 0.053307
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": 0.007631
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.12934
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": 0.642218
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.301275
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.212374
+    },
+    {
+      "symbol": "TRXUSDT",
+      "pnl": -0.2
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.249285
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.162095
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.350302
+    },
+    {
+      "symbol": "NEARUSDT",
+      "pnl": 0.508511
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.330885
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.309068
+    },
+    {
+      "symbol": "SUIUSDT",
+      "pnl": -0.64947
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.196613
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.197724
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.205093
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.176819
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.167867
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.207728
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.217059
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.198366
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.154228
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.170294
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.212104
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.223302
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.208963
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.035396
+    },
+    {
+      "symbol": "TRXUSDT",
+      "pnl": -0.169855
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.136886
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.346587
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.202082
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.232171
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.249609
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.200534
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.185124
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.18263
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.176661
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.211718
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.232369
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.12253
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.172707
+    },
+    {
+      "symbol": "XRPUSDT",
+      "pnl": -0.269241
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.348341
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.218566
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.172188
     }
   ],
-  "saved_at": "2026-10-25T16:20:42.763366+00:00"
+  "saved_at": "2026-10-25T21:53:50.256467+00:00"
 }
