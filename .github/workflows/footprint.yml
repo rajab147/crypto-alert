@@ -1,40 +1,45 @@
 name: orderflow-paper
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:      # آپ خود بٹن دبا کر بھی چلا سکتے ہیں
   schedule:
-    - cron: "0 */6 * * *"   # ہر 6 گھنٹے بعد نیا رن
+    - cron: "0 */6 * * *" # ہر 6 گھنٹے بعد خودکار رن ہوگا
 
 permissions:
-  contents: write
+  contents: write         # تاکہ اسکرپٹ اپنی سٹیٹ (State) کو محفوظ کر سکے
 
 concurrency:
   group: orderflow-paper
-  cancel-in-progress: false
+  cancel-in-progress: false # ایک وقت میں صرف ایک رن چلے گا
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 355
-    steps:
-      - uses: actions/checkout@v4
+    timeout-minutes: 355      # GitHub کی 6 گھنٹے کی حد سے 5 منٹ پہلے رکے گا
 
-      - uses: actions/setup-python@v5
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: 'pip'        # ڈیپنڈنسیز تیزی سے انسٹال ہوں گی
 
       - name: Install dependencies
         run: pip install websockets aiohttp python-dotenv
 
       - name: Run paper trader
         env:
-          NTFY_URL: ${{ secrets.NFTY_OF_URL }}
+          # ⚠️ اہم: یہاں سیکرٹ کا نام NTFY_URL ہونا چاہیے (آپ نے پہلے غلط لکھا تھا)
+          NTFY_URL: ${{ secrets.NTFY_URL }}
           NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
         run: |
-          # 340 منٹ بعد SIGINT بھیجتا ہے تاکہ اسکرپٹ پوزیشنز بند کر کے state محفوظ کرے
+          # 340 منٹ (تقریباً 5.6 گھنٹے) بعد SIGINT بھیج کر پوزیشنز بند کرے گا
           timeout -s INT -k 120 340m python orderflow_paper.py || [ $? -eq 124 ]
 
-      - name: Upload log
+      - name: Upload log (for debugging)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -42,12 +47,20 @@ jobs:
           path: orderflow.log*
           if-no-files-found: ignore
 
-      - name: Save state files
+      - name: Save state files (Commit & Push)
         if: always()
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # سٹیٹ فائلیں شامل کریں (اگر موجود ہوں)
           git add paper_state.json paper_trades.jsonl || true
-          git commit -m "update paper state" || echo "no changes"
-          git pull --rebase || true
+          
+          # اگر کوئی تبدیلی نہیں ہے تو کمانڈ فیل نہ ہو
+          git commit -m "auto: update paper state [skip ci]" || echo "No changes to commit"
+          
+          # سرور کے کوڈ سے ہم آہنگ ہوں (اگر کوئی اور تبدیلی آئی ہو)
+          git pull --rebase origin main || git pull --rebase || true
+          
+          # GitHub پر واپس بھیجیں
           git push || true
