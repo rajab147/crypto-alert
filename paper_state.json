@@ -1,13 +1,14 @@
 {
-  "balance": 1937.8705051994423,
+  "balance": 1936.149743931863,
   "positions": {},
   "day": "2026-10-25",
-  "alerts_today": 16,
+  "alerts_today": 26,
   "last_entry_alert": {
-    "BTCUSDT": 1792930281.6905584,
-    "ETHUSDT": 1792930299.6944127,
+    "BTCUSDT": 1792943154.7895727,
+    "ETHUSDT": 1792942749.693717,
     "SOLUSDT": 1792930308.6974654,
-    "BNBUSDT": 1792930692.8051867
+    "BNBUSDT": 1792943913.969345,
+    "ZECUSDT": 1792942791.7017925
   },
   "today_trades": [
     {
@@ -1325,7 +1326,31 @@
     {
       "symbol": "BTCUSDT",
       "pnl": -0.26013
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.213188
+    },
+    {
+      "symbol": "ZECUSDT",
+      "pnl": -0.749812
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.198093
+    },
+    {
+      "symbol": "BNBUSDT",
+      "pnl": -0.255155
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.13559
+    },
+    {
+      "symbol": "ETHUSDT",
+      "pnl": -0.168924
     }
   ],
-  "saved_at": "2026-10-25T15:28:04.254605+00:00"
+  "saved_at": "2026-10-25T16:20:42.763366+00:00"
 }
