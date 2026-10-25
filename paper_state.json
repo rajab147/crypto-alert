@@ -1,15 +1,8 @@
 {
-  "balance": 1938.13063501041,
-  "positions": {
-    "BTCUSDT": {
-      "entry_price": 80628.01,
-      "entry_time": 1792941567.6165395,
-      "size": 100.0,
-      "unrealized_pnl": 0.0
-    }
-  },
+  "balance": 1937.8705051994423,
+  "positions": {},
   "day": "2026-10-25",
-  "alerts_today": 15,
+  "alerts_today": 16,
   "last_entry_alert": {
     "BTCUSDT": 1792930281.6905584,
     "ETHUSDT": 1792930299.6944127,
@@ -1328,7 +1321,11 @@
     {
       "symbol": "ENAUSDT",
       "pnl": -0.101479
+    },
+    {
+      "symbol": "BTCUSDT",
+      "pnl": -0.26013
     }
   ],
-  "saved_at": "2026-10-25T15:19:28.000845+00:00"
+  "saved_at": "2026-10-25T15:28:04.254605+00:00"
 }

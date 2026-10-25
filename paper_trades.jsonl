@@ -327,3 +327,4 @@
 {"timestamp": "2026-10-25T15:19:12.611427+00:00", "symbol": "ETHUSDT", "side": "LONG", "entry_price": 2341.52, "exit_price": 2341.51, "size": 100.0, "pnl": -0.200427, "pnl_pct": -0.2004, "reason": "OBI flipped (-0.35)", "held_seconds": 21.0}
 {"timestamp": "2026-10-25T15:19:12.611427+00:00", "symbol": "ENAUSDT", "side": "LONG", "entry_price": 0.2028, "exit_price": 0.203, "size": 100.0, "pnl": -0.101479, "pnl_pct": -0.1015, "reason": "OBI flipped (-0.21)", "held_seconds": 21.0}
 {"timestamp": "2026-10-25T15:19:36.618151+00:00", "symbol": "ETHUSDT", "side": "LONG", "entry_price": 2341.3, "exit_price": 2341.29, "size": 100.0, "pnl": -0.200427, "pnl_pct": -0.2004, "reason": "CVD flipped (-29.0%)", "held_seconds": 3.0}
+{"timestamp": "2026-10-25T15:26:07.251956+00:00", "symbol": "BTCUSDT", "side": "LONG", "entry_price": 80628.01, "exit_price": 80579.48, "size": 100.0, "pnl": -0.26013, "pnl_pct": -0.2601, "reason": "CVD flipped (-61.7%)", "held_seconds": 399.6}
