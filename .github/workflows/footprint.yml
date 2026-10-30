@@ -1,4 +1,4 @@
-name: orderflow-paper
+name: orderflow-alerts
 
 on:
   workflow_dispatch:      # آپ خود بٹن دبا کر بھی چلا سکتے ہیں
@@ -9,13 +9,13 @@ permissions:
   contents: write         # تاکہ اسکرپٹ اپنی سٹیٹ (State) کو محفوظ کر سکے
 
 concurrency:
-  group: orderflow-paper
+  group: orderflow-alerts
   cancel-in-progress: false # ایک وقت میں صرف ایک رن چلے گا
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 355      # GitHub کی 6 گھنٹے کی حد سے 5 منٹ پہلے رکے گا
+    timeout-minutes: 355  # GitHub کی 6 گھنٹے (360 منٹ) کی حد سے 5 منٹ پہلے رکے گا
 
     steps:
       - name: Checkout Repository
@@ -25,26 +25,38 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'        # ڈیپنڈنسیز تیزی سے انسٹال ہوں گی
+          cache: 'pip'
 
       - name: Install dependencies
         run: pip install websockets aiohttp python-dotenv
 
-      - name: Run paper trader
+      - name: Run Orderflow Alert Script
         env:
-          # ⚠️ اہم: یہاں سیکرٹ کا نام NTFY_URL ہونا چاہیے (آپ نے پہلے غلط لکھا تھا)
           NTFY_URL: ${{ secrets.NTFY_URL }}
           NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          # اگر آپ کو US IP بلاک کا سامنا ہو تو یہ ان ویر ایبلز ان-کممنٹ کر دیں:
+          # BINANCE_REST_BASE: "https://api.binance.com"
+          # BINANCE_WS_BASE: "wss://stream.binance.com:9443/stream"
         run: |
-          # 340 منٹ (تقریباً 5.6 گھنٹے) بعد SIGINT بھیج کر پوزیشنز بند کرے گا
-          timeout -s INT -k 120 340m python orderflow_paper.py || [ $? -eq 124 ]
+          # 340 منٹ بعد SIGINT بھیجے گا تاکہ اسکرپٹ صاف ستھرا بند (graceful shutdown) ہو سکے
+          # اگر timeout (exit code 124) آئے تو ورک فلو fail نہیں ہوگا
+          timeout -s INT -k 120 340m python orderflow_alerts_1h4h_balanced.py
+          exit_code=$?
+          if [ $exit_code -eq 124 ]; then
+            echo "Script ran for 340 minutes and was stopped gracefully."
+            exit 0
+          else
+            exit $exit_code
+          fi
 
       - name: Upload log (for debugging)
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: orderflow-log
-          path: orderflow.log*
+          path: |
+            orderflow.log
+            orderflow.log.*
           if-no-files-found: ignore
 
       - name: Save state files (Commit & Push)
@@ -53,14 +65,13 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # سٹیٹ فائلیں شامل کریں (اگر موجود ہوں)
-          git add paper_state.json paper_trades.jsonl || true
+          # درست فائل کا نام: alerts_state.json (Python کوڈ کے مطابق)
+          git add alerts_state.json || true
           
-          # اگر کوئی تبدیلی نہیں ہے تو کمانڈ فیل نہ ہو
-          git commit -m "auto: update paper state [skip ci]" || echo "No changes to commit"
+          git commit -m "auto: update alert state [skip ci]" || echo "No changes to commit"
           
           # سرور کے کوڈ سے ہم آہنگ ہوں (اگر کوئی اور تبدیلی آئی ہو)
           git pull --rebase origin main || git pull --rebase || true
           
           # GitHub پر واپس بھیجیں
-          git push || true
+          git push origin main || true
