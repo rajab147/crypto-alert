@@ -6,7 +6,7 @@ on:
     - cron: "0 */6 * * *" # ہر 6 گھنٹے بعد خودکار رن ہوگا
 
 permissions:
-  contents: write         # تاکہ اسکرپٹ اپنی سٹیٹ (State) کو محفوظ کر سکے
+  contents: write         # تاکہ اسکرپٹ اپنی سٹیٹ (State) کو محفوظ کر سک
 
 concurrency:
   group: orderflow-choch-live
