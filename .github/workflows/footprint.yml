@@ -28,16 +28,13 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
-        # نئے کوڈ کو ccxt کی ضرورت نہیں، aiohttp کافی ہے
         run: pip install websockets aiohttp python-dotenv
 
       - name: Run CHoCH + Orderflow Live
         env:
-          # ⚠️ یہاں Secrets کا صحیح فارمیٹ استعمال کریں
-          NTFY_URL: $ {{ secrets.NTFY_URL }}
-          NTFY_TOKEN: $ {{ secrets.NTFY_TOKEN }}  
+          NTFY_URL: ${{ secrets.NTFY_URL }}
+          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
         run: |
-          # نئی فائل (orderflow_choch_live.py) چلائیں
           timeout -s INT -k 120 340m python orderflow_choch_live.py || [ $? -eq 124 ]
 
       - name: Upload log (for debugging)
@@ -54,13 +51,10 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # ✅ درست فائل کا نام: alerts_state.json
           git add alerts_state.json || true
           
           git commit -m "auto: update state [skip ci]" || echo "No changes to commit"
           
-          # سرور کے کوڈ سے ہم آہنگ ہوں
           git pull --rebase origin main || git pull --rebase || true
           
-          # GitHub پر واپس بھیجیں
           git push || true
