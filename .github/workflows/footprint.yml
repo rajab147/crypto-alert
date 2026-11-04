@@ -1,4 +1,4 @@
-name: orderflow-paper
+name: orderflow-choch-live
 
 on:
   workflow_dispatch:      # آپ خود بٹن دبا کر بھی چلا سکتے ہیں
@@ -9,7 +9,7 @@ permissions:
   contents: write         # تاکہ اسکرپٹ اپنی سٹیٹ (State) کو محفوظ کر سکے
 
 concurrency:
-  group: orderflow-paper
+  group: orderflow-choch-live
   cancel-in-progress: false # ایک وقت میں صرف ایک رن چلے گا
 
 jobs:
@@ -25,19 +25,20 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'        # ڈیپنڈنسیز تیزی سے انسٹال ہوں گی
+          cache: 'pip'
 
       - name: Install dependencies
+        # نئے کوڈ کو ccxt کی ضرورت نہیں، aiohttp کافی ہے
         run: pip install websockets aiohttp python-dotenv
 
-      - name: Run paper trader
+      - name: Run CHoCH + Orderflow Live
         env:
-          # ⚠️ اہم: یہاں سیکرٹ کا نام NTFY_URL ہونا چاہیے (آپ نے پہلے غلط لکھا تھا)
-          NTFY_URL: ${{ secrets.NTFY_URL }}
-          NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+          # ⚠️ یہاں Secrets کا صحیح فارمیٹ استعمال کریں
+          NTFY_URL: ***
+          NTFY_TOKEN: ***
         run: |
-          # 340 منٹ (تقریباً 5.6 گھنٹے) بعد SIGINT بھیج کر پوزیشنز بند کرے گا
-          timeout -s INT -k 120 340m python orderflow_paper.py || [ $? -eq 124 ]
+          # نئی فائل (orderflow_choch_live.py) چلائیں
+          timeout -s INT -k 120 340m python orderflow_choch_live.py || [ $? -eq 124 ]
 
       - name: Upload log (for debugging)
         if: always()
@@ -53,13 +54,12 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # سٹیٹ فائلیں شامل کریں (اگر موجود ہوں)
-          git add paper_state.json paper_trades.jsonl || true
+          # ✅ درست فائل کا نام: alerts_state.json
+          git add alerts_state.json || true
           
-          # اگر کوئی تبدیلی نہیں ہے تو کمانڈ فیل نہ ہو
-          git commit -m "auto: update paper state [skip ci]" || echo "No changes to commit"
+          git commit -m "auto: update state [skip ci]" || echo "No changes to commit"
           
-          # سرور کے کوڈ سے ہم آہنگ ہوں (اگر کوئی اور تبدیلی آئی ہو)
+          # سرور کے کوڈ سے ہم آہنگ ہوں
           git pull --rebase origin main || git pull --rebase || true
           
           # GitHub پر واپس بھیجیں
