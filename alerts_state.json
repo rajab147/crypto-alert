@@ -1,10 +1,18 @@
 {
   "day": "2026-11-05",
-  "alerts_today": 0,
+  "alerts_today": 2,
   "last_alert": {
-    "BTCUSDT|1h|1h|SELL|hidden-div": 1793833201.9343355
+    "BTCUSDT|1h|1h|SELL|hidden-div": 1793833201.9343355,
+    "BTCUSDT|1h|1h|BUY|hidden-div": 1793859301.0562334,
+    "BNBUSDT|1h|1h|BUY|regular-div": 1793860201.4854174
   },
-  "today_symbols": {},
-  "today_counts": {},
-  "saved_at": "2026-11-05T00:17:21.974493+00:00"
+  "today_symbols": {
+    "BTCUSDT": 1,
+    "BNBUSDT": 1
+  },
+  "today_counts": {
+    "1h/1h BUY hidden-div": 1,
+    "1h/1h BUY regular-div": 1
+  },
+  "saved_at": "2026-11-05T07:29:51.756183+00:00"
 }
