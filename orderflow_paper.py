@@ -74,7 +74,7 @@ CONFIG: dict[str, Any] = {
         "regime_mode": "hidden_only",      # "off" | "hidden_only" | "all"
         "regime_tf": "4h",
         "regime_oppose_cvd_pct": 8.0,
-        "trigger_max_delay_sec": 90,       # trigger candle must be evaluated this soon after close
+        "trigger_max_delay_sec": 180,       # trigger candle must be evaluated this soon after close
         "trigger_require_color": True,     # BUY: close>open, SELL: close<open
         "trigger_require_delta": True,     # BUY: taker buy>sell inside trigger candle
         "trigger_break": "prev_close",     # "off" | "prev_close" | "prev_high" (low for SELL)
