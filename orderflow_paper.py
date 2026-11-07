@@ -111,7 +111,7 @@ CONFIG: dict[str, Any] = {
             "mtf_frames": ["4h", "1h"],
         },
     },
-    "max_alerts_per_day": 100,
+    "max_alerts_per_day": 300,
     "depth_levels": 10,
     "stale_seconds": 10,
     "ws_recv_timeout_sec": 30,
