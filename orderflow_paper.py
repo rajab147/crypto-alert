@@ -35,7 +35,7 @@ CONFIG: dict[str, Any] = {
     "max_price_change_24h_pct": 30.0,
     "spread_max_bps": 40.0,
     "eval_interval_sec": 3,
-    "warmup_seconds": 5,
+    "warmup_seconds": 900,
     "bucket_seconds": 5,
     "min_window_fill": 0.50,
     "obi_window_average": True,
