@@ -619,7 +619,7 @@ def analyze_choch(candles: list[list[float]]) -> tuple[list[dict[str, Any]], str
 
 # ============================ FIXED 100-COIN WHITELIST ============================
 WHITELIST = frozenset({
-    "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "LINK", "AVAX", "DOT",
+      "BTC", "ETH", "BNB", "XRP", "SOL", "ADA", "DOGE", "TRX", "LINK", "AVAX", "DOT",
     "LTC", "BCH", "XLM", "ATOM", "ETC", "XMR", "NEAR", "UNI", "APT", "ARB",
     "OP", "FIL", "ICP", "HBAR", "VET", "INJ", "SUI", "SEI", "TIA", "AAVE",
     "MKR", "LDO", "CRV", "SNX", "COMP", "SUSHI", "1INCH", "DYDX", "GMX", "RUNE",
