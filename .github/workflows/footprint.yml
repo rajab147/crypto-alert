@@ -1,60 +1,53 @@
 name: orderflow-choch-live
 
 on:
-  workflow_dispatch:      # آپ خود بٹن دبا کر بھی چلا سکتے ہیں
   schedule:
-    - cron: "0 */6 * * *" # ہر 6 گھنٹے بعد خودکار رن ہوگا
-
-permissions:
-  contents: write         # تاکہ اسکرپٹ اپنی سٹیٹ (State) کو محفوظ کر سکے
+    - cron: "0 0,6,12,18 * * *"   # ہر 6 گھنٹے: 00, 06, 12, 18 UTC
+  workflow_dispatch:
 
 concurrency:
-  group: orderflow-choch-live
-  cancel-in-progress: false # ایک وقت میں صرف ایک رن چلے گا
+  group: orderflow-live
+  cancel-in-progress: false
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 355      # GitHub کی 6 گھنٹے کی حد سے 5 منٹ پہلے رکے گا
-
+    timeout-minutes: 360
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          cache: 'pip'
 
       - name: Install dependencies
-        run: pip install websockets aiohttp python-dotenv
+        run: pip install aiohttp websockets python-dotenv
 
       - name: Run CHoCH + Orderflow Live
         env:
           NTFY_URL: ${{ secrets.NTFY_URL }}
           NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
         run: |
-          timeout -s INT -k 120 340m python orderflow_choch_live.py || [ $? -eq 124 ]
-
-      - name: Upload log (for debugging)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: orderflow-log
-          path: orderflow.log*
-          if-no-files-found: ignore
+          set +e
+          timeout -s INT -k 60 350m python orderflow_choch_live.py
+          ec=$?
+          set -e
+          echo "bot exit code: $ec"
+          if [ $ec -eq 0 ] || [ $ec -eq 124 ] || [ $ec -eq 130 ] || [ $ec -eq 137 ] || [ $ec -eq 143 ]; then
+            echo "graceful/timeout shutdown accepted"
+            exit 0
+          fi
+          exit $ec
 
       - name: Save state files (Commit & Push)
         if: always()
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add alerts_state.json || true
-          
-          git commit -m "auto: update state [skip ci]" || echo "No changes to commit"
-          
-          git pull --rebase origin main || git pull --rebase || true
-          
+          git config user.email "actions@github.com"
+          git add alerts_state.json windows_state.json futures_state.json orderflow.log || true
+          git commit -m "state: update [skip ci]" || true
           git push || true
