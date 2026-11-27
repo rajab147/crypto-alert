@@ -1187,3 +1187,690 @@
 2026-11-26 22:02:41,443 INFO [ENGINE] State saved | alerts_today=88 connected=True
 2026-11-26 22:03:42,221 INFO [ENGINE] State saved | alerts_today=88 connected=True
 2026-11-26 22:04:42,977 INFO [ENGINE] State saved | alerts_today=88 connected=True
+2026-11-27 01:36:39,952 INFO [BOOT] combined | rules=1h_choch,4h_choch,1d_choch | rest=False | FUT_ENABLED=True FUT_REQUIRED=False FUT_PAIR_ONLY=True
+2026-11-27 01:36:39,952 INFO [RULE] 1h_choch legs=['30m', '1h'] gate=1h cooldown=45 fill=0.85 cvd={'30m': 4.0, '1h': 3.0}
+2026-11-27 01:36:39,952 INFO [RULE] 4h_choch legs=['30m', '1h'] gate=4h cooldown=45 fill=0.85 cvd={'30m': 4.0, '1h': 3.0}
+2026-11-27 01:36:39,952 INFO [RULE] 1d_choch legs=['1h', '4h'] gate=1d cooldown=180 fill=0.5 cvd={'1h': 2.5, '4h': 8.0}
+2026-11-27 01:36:39,977 INFO [ENGINE] Loaded state: day=2026-11-26 alerts_today=88
+2026-11-27 01:36:40,232 INFO [FUT] instruments rows=554 usable=539
+2026-11-27 01:36:40,232 INFO [FUT] pair-universe ready: 539 coins listed on both venues
+2026-11-27 01:36:40,232 INFO [ENGINE] Pair-universe filter: 539 bases
+2026-11-27 01:36:41,827 INFO [ENGINE] Selected 20 symbols | excluded 56 | not-on-both 269 | of 789 USDT pairs
+2026-11-27 01:36:41,828 INFO [BTCUSDT] #1 quoteVolume=$919,605,465 trades24h=3,909,542 change24h=+0.07%
+2026-11-27 01:36:41,828 INFO [ETHUSDT] #2 quoteVolume=$339,861,092 trades24h=1,573,289 change24h=+0.12%
+2026-11-27 01:36:41,828 INFO [ZECUSDT] #3 quoteVolume=$179,776,265 trades24h=720,187 change24h=-8.91%
+2026-11-27 01:36:41,828 INFO [SOLUSDT] #4 quoteVolume=$104,196,903 trades24h=347,721 change24h=+0.82%
+2026-11-27 01:36:41,828 INFO [XRPUSDT] #5 quoteVolume=$71,307,211 trades24h=321,426 change24h=+0.32%
+2026-11-27 01:36:41,828 INFO [NEARUSDT] #6 quoteVolume=$65,832,321 trades24h=255,258 change24h=-0.65%
+2026-11-27 01:36:41,828 INFO [BNBUSDT] #7 quoteVolume=$46,444,671 trades24h=414,631 change24h=+0.18%
+2026-11-27 01:36:41,828 INFO [HYPEUSDT] #8 quoteVolume=$20,898,127 trades24h=96,111 change24h=+1.95%
+2026-11-27 01:36:41,828 INFO [PEPEUSDT] #9 quoteVolume=$20,781,959 trades24h=52,885 change24h=-0.57%
+2026-11-27 01:36:41,828 INFO [SUIUSDT] #10 quoteVolume=$20,079,788 trades24h=192,564 change24h=-0.24%
+2026-11-27 01:36:41,828 INFO [UNIUSDT] #11 quoteVolume=$17,372,528 trades24h=69,772 change24h=-1.43%
+2026-11-27 01:36:41,828 INFO [TRXUSDT] #12 quoteVolume=$14,896,014 trades24h=58,675 change24h=+0.40%
+2026-11-27 01:36:41,828 INFO [DOGEUSDT] #13 quoteVolume=$14,596,771 trades24h=162,608 change24h=+0.39%
+2026-11-27 01:36:41,828 INFO [ADAUSDT] #14 quoteVolume=$14,305,070 trades24h=59,067 change24h=+1.56%
+2026-11-27 01:36:41,828 INFO [LTCUSDT] #15 quoteVolume=$13,612,643 trades24h=103,969 change24h=+2.50%
+2026-11-27 01:36:41,828 INFO [ENAUSDT] #16 quoteVolume=$13,148,100 trades24h=55,939 change24h=+0.69%
+2026-11-27 01:36:41,829 INFO [LINKUSDT] #17 quoteVolume=$12,705,332 trades24h=131,139 change24h=+2.56%
+2026-11-27 01:36:41,829 INFO [SEIUSDT] #18 quoteVolume=$11,830,990 trades24h=147,818 change24h=+13.55%
+2026-11-27 01:36:41,829 INFO [AAVEUSDT] #19 quoteVolume=$11,614,192 trades24h=91,488 change24h=-1.15%
+2026-11-27 01:36:41,829 INFO [SSVUSDT] #20 quoteVolume=$10,928,849 trades24h=164,068 change24h=+15.41%
+2026-11-27 01:36:41,967 INFO [ENGINE] Restored warm windows for 18 symbols (age 212.0min)
+2026-11-27 01:36:41,972 INFO [ENGINE] Daily rollover:
+Signal Summary 2026-11-26
+Alerts sent: 88
+1d_choch FLOW SELL: 6
+1h_choch FLOW BUY: 44
+1h_choch FLOW SELL: 4
+4h_choch FLOW BUY: 11
+4h_choch FLOW SELL: 23
+Most active: LTCUSDT x7, XRPUSDT x7, DOGEUSDT x7, BTCUSDT x7, PEPEUSDT x6
+2026-11-27 01:36:41,973 INFO [ENGINE] Starting alerts: 20 symbols | rules=1h_choch,4h_choch,1d_choch | min_volume=30000 min_trades=50 require_fp=False | dup 30min/60s | rest=False
+2026-11-27 01:36:41,974 INFO [ENGINE] Keeping restored warm windows (no startup wipe)
+2026-11-27 01:36:41,974 INFO [ENGINE] Connecting Spot WebSocket (839 chars URL)
+2026-11-27 01:36:41,984 INFO [FUT] order-flow states ready for 20/20 symbols
+2026-11-27 01:36:42,069 INFO [FUT] Restored warm futures windows for 18 symbols (age 212.0min)
+2026-11-27 01:36:42,073 INFO [FUT] connecting futures feed for 20 instruments
+2026-11-27 01:36:42,741 INFO [FUT] subscribed trades + books5 for 20 instruments
+2026-11-27 01:36:42,828 INFO [ENGINE] Spot WebSocket connected, receiving data
+2026-11-27 01:36:44,162 INFO [FUT] REAL order-flow receiving: 10/20 symbols have trades
+2026-11-27 01:36:45,110 INFO [CHOCH] SOLUSDT 1h BULLISH CHoCH | level 69.03000000 close 69.44000000
+2026-11-27 01:36:45,112 INFO [CHOCH] ETHUSDT 1h BULLISH CHoCH | level 1665.52000000 close 1679.15000000
+2026-11-27 01:36:45,113 INFO [CHOCH] BTCUSDT 1h BULLISH CHoCH | level 59489.63000000 close 59603.25000000
+2026-11-27 01:36:45,113 INFO [CHOCH] ZECUSDT 1h BULLISH CHoCH | level 744.43000000 close 749.76000000
+2026-11-27 01:36:45,354 INFO [CHOCH] SOLUSDT 4h BEARISH CHoCH | level 69.89000000 close 69.05000000
+2026-11-27 01:36:45,357 INFO [CHOCH] ETHUSDT 4h BEARISH CHoCH | level 1648.35000000 close 1640.95000000
+2026-11-27 01:36:45,357 INFO [CHOCH] BTCUSDT 4h BEARISH CHoCH | level 58768.51000000 close 58738.33000000
+2026-11-27 01:36:45,359 INFO [CHOCH] ZECUSDT 4h BEARISH CHoCH | level 776.98000000 close 776.93000000
+2026-11-27 01:36:45,597 INFO [CHOCH] ETHUSDT 1d BEARISH CHoCH | level 2206.28000000 close 2127.46000000
+2026-11-27 01:36:45,597 INFO [CHOCH] SOLUSDT 1d BEARISH CHoCH | level 112.52000000 close 109.62000000
+2026-11-27 01:36:45,599 INFO [CHOCH] BTCUSDT 1d BEARISH CHoCH | level 76264.00000000 close 75644.48000000
+2026-11-27 01:36:45,599 INFO [CHOCH] ZECUSDT 1d BEARISH CHoCH | level 1271.09000000 close 1187.02000000
+2026-11-27 01:36:45,815 INFO [CHOCH] SOLUSDT 1w BULLISH CHoCH | level 98.41000000 close 101.75000000
+2026-11-27 01:36:45,821 INFO [CHOCH] ZECUSDT 1w BEARISH CHoCH | level 1049.01000000 close 916.03000000
+2026-11-27 01:36:45,822 INFO [CHOCH] ETHUSDT 1w BULLISH CHoCH | level 1981.24000000 close 2463.41000000
+2026-11-27 01:36:45,823 INFO [CHOCH] BTCUSDT 1w BEARISH CHoCH | level 74967.97000000 close 74851.44000000
+2026-11-27 01:36:46,054 INFO [CHOCH] XRPUSDT 1h BULLISH CHoCH | level 0.92740000 close 0.92880000
+2026-11-27 01:36:46,055 INFO [CHOCH] NEARUSDT 1h BULLISH CHoCH | level 2.90600000 close 2.92000000
+2026-11-27 01:36:46,057 INFO [CHOCH] HYPEUSDT 1h BULLISH CHoCH | level 62.16000000 close 63.19000000
+2026-11-27 01:36:46,057 INFO [CHOCH] BNBUSDT 1h BULLISH CHoCH | level 544.92000000 close 548.50000000
+2026-11-27 01:36:46,275 INFO [CHOCH] HYPEUSDT 4h BEARISH CHoCH | level 76.25000000 close 74.56000000
+2026-11-27 01:36:46,288 INFO [CHOCH] XRPUSDT 4h BEARISH CHoCH | level 0.91300000 close 0.90900000
+2026-11-27 01:36:46,289 INFO [CHOCH] NEARUSDT 4h BEARISH CHoCH | level 2.84600000 close 2.81900000
+2026-11-27 01:36:46,290 INFO [CHOCH] BNBUSDT 4h BEARISH CHoCH | level 670.06000000 close 664.41000000
+2026-11-27 01:36:46,487 INFO [CHOCH] HYPEUSDT 1d BEARISH CHoCH | level 76.25000000 close 74.56000000
+2026-11-27 01:36:46,525 INFO [CHOCH] NEARUSDT 1d BEARISH CHoCH | level 4.25000000 close 4.05900000
+2026-11-27 01:36:46,525 INFO [CHOCH] XRPUSDT 1d BEARISH CHoCH | level 1.30980000 close 1.28330000
+2026-11-27 01:36:46,527 INFO [CHOCH] BNBUSDT 1d BEARISH CHoCH | level 705.86000000 close 698.46000000
+2026-11-27 01:36:46,744 INFO [CHOCH] NEARUSDT 1w BEARISH CHoCH | level 1.72300000 close 1.71800000
+2026-11-27 01:36:46,745 INFO [CHOCH] XRPUSDT 1w BEARISH CHoCH | level 2.69750000 close 2.52820000
+2026-11-27 01:36:46,749 INFO [CHOCH] BNBUSDT 1w BEARISH CHoCH | level 570.31000000 close 551.07000000
+2026-11-27 01:36:46,932 INFO [CHOCH] PEPEUSDT 1h BULLISH CHoCH | level 0.00000355 close 0.00000356
+2026-11-27 01:36:46,978 INFO [CHOCH] UNIUSDT 1h BEARISH CHoCH | level 4.68900000 close 4.68200000
+2026-11-27 01:36:46,979 INFO [CHOCH] SUIUSDT 1h BEARISH CHoCH | level 0.66480000 close 0.66160000
+2026-11-27 01:36:46,981 INFO [CHOCH] TRXUSDT 1h BULLISH CHoCH | level 0.30420000 close 0.30430000
+2026-11-27 01:36:47,163 INFO [CHOCH] PEPEUSDT 4h BULLISH CHoCH | level 0.00000347 close 0.00000363
+2026-11-27 01:36:47,212 INFO [CHOCH] UNIUSDT 4h BEARISH CHoCH | level 4.63100000 close 4.61000000
+2026-11-27 01:36:47,212 INFO [CHOCH] SUIUSDT 4h BEARISH CHoCH | level 0.64080000 close 0.63970000
+2026-11-27 01:36:47,214 INFO [CHOCH] TRXUSDT 4h BEARISH CHoCH | level 0.30480000 close 0.30320000
+2026-11-27 01:36:47,395 INFO [CHOCH] PEPEUSDT 1d BEARISH CHoCH | level 0.00000459 close 0.00000452
+2026-11-27 01:36:47,446 INFO [CHOCH] UNIUSDT 1d BEARISH CHoCH | level 8.44700000 close 7.91000000
+2026-11-27 01:36:47,450 INFO [CHOCH] SUIUSDT 1d BEARISH CHoCH | level 1.10320000 close 1.04080000
+2026-11-27 01:36:47,451 INFO [CHOCH] TRXUSDT 1d BEARISH CHoCH | level 0.32770000 close 0.32720000
+2026-11-27 01:36:47,611 INFO [CHOCH] PEPEUSDT 1w BULLISH CHoCH | level 0.00000310 close 0.00000410
+2026-11-27 01:36:47,665 INFO [CHOCH] UNIUSDT 1w BULLISH CHoCH | level 4.57700000 close 5.13100000
+2026-11-27 01:36:47,666 INFO [CHOCH] SUIUSDT 1w BEARISH CHoCH | level 0.78810000 close 0.75870000
+2026-11-27 01:36:47,672 INFO [CHOCH] TRXUSDT 1w BEARISH CHoCH | level 0.31080000 close 0.30540000
+2026-11-27 01:36:47,843 INFO [CHOCH] DOGEUSDT 1h BEARISH CHoCH | level 0.05650000 close 0.05648000
+2026-11-27 01:36:47,899 INFO [CHOCH] ADAUSDT 1h BULLISH CHoCH | level 0.14620000 close 0.14630000
+2026-11-27 01:36:47,901 INFO [CHOCH] LTCUSDT 1h BULLISH CHoCH | level 41.04000000 close 41.78000000
+2026-11-27 01:36:47,903 INFO [CHOCH] ENAUSDT 1h BEARISH CHoCH | level 0.09870000 close 0.09860000
+2026-11-27 01:36:48,078 INFO [CHOCH] DOGEUSDT 4h BEARISH CHoCH | level 0.05436000 close 0.05429000
+2026-11-27 01:36:48,130 INFO [CHOCH] ADAUSDT 4h BEARISH CHoCH | level 0.14200000 close 0.13990000
+2026-11-27 01:36:48,135 INFO [CHOCH] LTCUSDT 4h BULLISH CHoCH | level 40.53000000 close 40.57000000
+2026-11-27 01:36:48,137 INFO [CHOCH] ENAUSDT 4h BEARISH CHoCH | level 0.09870000 close 0.09750000
+2026-11-27 01:36:48,311 INFO [CHOCH] DOGEUSDT 1d BEARISH CHoCH | level 0.08229000 close 0.08008000
+2026-11-27 01:36:48,361 INFO [CHOCH] ADAUSDT 1d BEARISH CHoCH | level 0.23890000 close 0.23220000
+2026-11-27 01:36:48,369 INFO [CHOCH] LTCUSDT 1d BEARISH CHoCH | level 51.62000000 close 51.27000000
+2026-11-27 01:36:48,371 INFO [CHOCH] ENAUSDT 1d BEARISH CHoCH | level 0.22790000 close 0.22640000
+2026-11-27 01:36:48,532 INFO [CHOCH] DOGEUSDT 1w BEARISH CHoCH | level 0.26216000 close 0.24890000
+2026-11-27 01:36:48,581 INFO [CHOCH] ADAUSDT 1w BEARISH CHoCH | level 0.23280000 close 0.16530000
+2026-11-27 01:36:48,586 INFO [CHOCH] ENAUSDT 1w BEARISH CHoCH | level 0.13480000 close 0.12140000
+2026-11-27 01:36:48,591 INFO [CHOCH] LTCUSDT 1w BEARISH CHoCH | level 40.52000000 close 40.21000000
+2026-11-27 01:36:48,764 INFO [CHOCH] LINKUSDT 1h BULLISH CHoCH | level 8.93600000 close 8.98000000
+2026-11-27 01:36:48,814 INFO [CHOCH] SEIUSDT 1h BULLISH CHoCH | level 0.03261000 close 0.03270000
+2026-11-27 01:36:48,817 INFO [CHOCH] AAVEUSDT 1h BEARISH CHoCH | level 94.52000000 close 93.97000000
+2026-11-27 01:36:48,822 INFO [CHOCH] SSVUSDT 1h BULLISH CHoCH | level 1.61100000 close 1.61300000
+2026-11-27 01:36:48,996 INFO [CHOCH] LINKUSDT 4h BEARISH CHoCH | level 8.71200000 close 8.70900000
+2026-11-27 01:36:49,048 INFO [CHOCH] SEIUSDT 4h BULLISH CHoCH | level 0.03732000 close 0.03853000
+2026-11-27 01:36:49,051 INFO [CHOCH] AAVEUSDT 4h BEARISH CHoCH | level 95.56000000 close 95.50000000
+2026-11-27 01:36:49,054 INFO [CHOCH] SSVUSDT 4h BULLISH CHoCH | level 1.62200000 close 1.64800000
+2026-11-27 01:36:49,229 INFO [CHOCH] LINKUSDT 1d BEARISH CHoCH | level 12.09100000 close 11.98600000
+2026-11-27 01:36:49,281 INFO [CHOCH] SEIUSDT 1d BEARISH CHoCH | level 0.06674000 close 0.06611000
+2026-11-27 01:36:49,286 INFO [CHOCH] AAVEUSDT 1d BEARISH CHoCH | level 159.85000000 close 156.93000000
+2026-11-27 01:36:49,288 INFO [CHOCH] SSVUSDT 1d BULLISH CHoCH | level 2.40000000 close 2.72000000
+2026-11-27 01:36:49,452 INFO [CHOCH] LINKUSDT 1w BULLISH CHoCH | level 10.87000000 close 11.54300000
+2026-11-27 01:36:49,496 INFO [CHOCH] SEIUSDT 1w BEARISH CHoCH | level 0.26850000 close 0.22840000
+2026-11-27 01:36:49,504 INFO [CHOCH] SSVUSDT 1w BEARISH CHoCH | level 1.91800000 close 1.89800000
+2026-11-27 01:36:49,505 INFO [CHOCH] AAVEUSDT 1w BEARISH CHoCH | level 113.19000000 close 109.74000000
+2026-11-27 01:37:42,032 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:38:42,097 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:39:42,179 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:40:42,283 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:41:42,401 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:42:42,537 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:43:42,687 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:44:42,851 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:45:43,040 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:46:43,236 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:47:43,439 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:48:43,660 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:49:43,890 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:50:44,142 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:51:44,410 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:52:44,680 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:53:44,962 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:54:45,254 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:55:45,569 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:56:45,882 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:57:46,205 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:58:46,532 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 01:59:46,869 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:00:07,529 INFO [CHOCH] BTCUSDT 1h BULLISH CHoCH | level 59489.63000000 close 59603.25000000
+2026-11-27 02:00:07,566 INFO [CHOCH] ZECUSDT 1h BULLISH CHoCH | level 744.43000000 close 749.76000000
+2026-11-27 02:00:07,584 INFO [CHOCH] SOLUSDT 1h BULLISH CHoCH | level 69.03000000 close 69.44000000
+2026-11-27 02:00:07,592 INFO [CHOCH] ETHUSDT 1h BULLISH CHoCH | level 1665.52000000 close 1679.15000000
+2026-11-27 02:00:07,928 INFO [CHOCH] XRPUSDT 1h BULLISH CHoCH | level 0.92740000 close 0.92880000
+2026-11-27 02:00:07,940 INFO [CHOCH] NEARUSDT 1h BULLISH CHoCH | level 2.90600000 close 2.92000000
+2026-11-27 02:00:07,955 INFO [CHOCH] BNBUSDT 1h BULLISH CHoCH | level 544.92000000 close 548.50000000
+2026-11-27 02:00:07,974 INFO [CHOCH] HYPEUSDT 1h BULLISH CHoCH | level 62.16000000 close 63.19000000
+2026-11-27 02:00:08,295 INFO [CHOCH] PEPEUSDT 1h BULLISH CHoCH | level 0.00000355 close 0.00000356
+2026-11-27 02:00:08,307 INFO [CHOCH] SUIUSDT 1h BEARISH CHoCH | level 0.66480000 close 0.66160000
+2026-11-27 02:00:08,319 INFO [CHOCH] UNIUSDT 1h BEARISH CHoCH | level 4.68900000 close 4.68200000
+2026-11-27 02:00:08,339 INFO [CHOCH] TRXUSDT 1h BULLISH CHoCH | level 0.30420000 close 0.30430000
+2026-11-27 02:00:08,661 INFO [CHOCH] DOGEUSDT 1h BEARISH CHoCH | level 0.05650000 close 0.05648000
+2026-11-27 02:00:08,672 INFO [CHOCH] ADAUSDT 1h BULLISH CHoCH | level 0.14620000 close 0.14630000
+2026-11-27 02:00:08,683 INFO [CHOCH] LTCUSDT 1h BULLISH CHoCH | level 41.04000000 close 41.78000000
+2026-11-27 02:00:08,705 INFO [CHOCH] ENAUSDT 1h BEARISH CHoCH | level 0.09870000 close 0.09860000
+2026-11-27 02:00:09,024 INFO [CHOCH] LINKUSDT 1h BULLISH CHoCH | level 8.93600000 close 8.98000000
+2026-11-27 02:00:09,038 INFO [CHOCH] SEIUSDT 1h BULLISH CHoCH | level 0.03261000 close 0.03270000
+2026-11-27 02:00:09,047 INFO [CHOCH] AAVEUSDT 1h BEARISH CHoCH | level 94.52000000 close 93.97000000
+2026-11-27 02:00:09,070 INFO [CHOCH] SSVUSDT 1h BULLISH CHoCH | level 1.61100000 close 1.61300000
+2026-11-27 02:00:47,213 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:01:47,575 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:02:47,953 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:03:48,339 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:04:48,746 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:05:49,152 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:06:41,984 INFO [DIAG] health: uptime=0.5h msg_rate=166.6/s signals=0 eval_cycles=899 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 02:06:41,984 INFO [DIAG] 1d_choch gates over last 30min: underfill=100%
+2026-11-27 02:06:41,984 INFO [DIAG] 1h_choch gates over last 30min: underfill=100% low_volume=0%
+2026-11-27 02:06:41,984 INFO [DIAG] 4h_choch gates over last 30min: underfill=100% low_volume=0%
+2026-11-27 02:06:41,984 INFO [DIAG] all gates over last 30min: warmup=82% stale=18%
+2026-11-27 02:06:49,571 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:07:50,027 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:08:50,468 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:09:50,929 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:10:51,386 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:11:51,860 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:12:52,326 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:13:52,808 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:14:53,287 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:15:53,795 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:16:54,300 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:17:54,801 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:18:55,306 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:19:55,828 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:20:56,372 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:21:56,903 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:22:57,448 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:23:58,012 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:24:58,582 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:25:59,168 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:26:59,772 INFO [ENGINE] State saved | alerts_today=0 connected=True
+2026-11-27 02:27:43,554 INFO [SOLUSDT] SOLUSDT FLOW BUY [1h_choch] | Symbol: SOLUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: BUILDING | Trend Filter: 1h CHoCH | Current Price: 72.58 | CVD% (30m): +30.64% | move +1.55% | VWAP dist +0.49% | vol 9,899,770 | trades 5613 | Flow (30m): INFLOW $6,466,750 | OUTFLOW $3,433,020 | NET $+3,033,730 | Size (30m): whale $+1,168,055 | mid $+1,575,501 | retail $+290,173 | avg trade $1,764 | CVD% (1h): +22.66% | move +1.60% | VWAP dist +0.64% | vol 11,431,086 | trades 6829 | Flow (1h): INFLOW $7,010,910 | OUTFLOW $4,420,176 | NET $+2,590,734 | Size (1h): whale $+790,504 | mid $+1,468,858 | retail $+331,371 | avg trade $1,674 | CVD% (15m): +26.84% | Flow (15m): INFLOW $3,228,302 | OUTFLOW $1,862,096 | NET $+1,366,206 | Flow accel (15m/30m): 0.88x [STEADY] | Flow source: MIXED (whale 39% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.1089 | now +0.0556 | Lead score: 19.7 | Spread bps: 1.38 | Footprint: row 0.02, ratio 0.84x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:27:43 AM | Alert Time (PKT): 2026-11-27 07:27:43 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.97% | 1h +0.54% | funding +0.0072% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (33.5h ago, level 69.03, close 69.44); [opposite] 4h Bearish CHoCH (62.5h ago, level 69.89, close 69.05); [opposite] 1d Bearish CHoCH (1202.5h ago, level 112.52, close 109.62) | HTF context: 1w: Bullish | Futures data: PARTIAL (30m 100%, 1h 85%, 4h 100%) | Futures CVD% (30m): +20.03% | vol $42,284,683 | trades 12544 | fill 100% | Futures Flow (30m): INFLOW $25,376,681 | OUTFLOW $16,908,002 | NET $+8,468,679 | Futures Size (30m): whale $+1,827,615 | mid $+5,867,525 | retail $+773,539 | avg trade $3,371 | source MIXED (whale 22% of net) | Futures CVD% (1h): +17.63% | vol $47,693,885 | trades 13962 | fill 85% | Futures Flow (1h): INFLOW $28,049,991 | OUTFLOW $19,643,894 | NET $+8,406,097 | Futures Size (1h): whale $+1,676,998 | mid $+6,240,565 | retail $+488,534 | avg trade $3,416 | source MIXED (whale 20% of net) | Futures CVD% (15m): +2.59% | NET $+467,048 | fill 100% | Futures OBI: now -0.0972 | spread 1.38 bps | price 72.55 | Futures gate: BLOCKED (weak_obi) [observe-only] | Futures feed: trades 13962 msgs (last 0.0s) | book 27435 msgs (last 0.1s)
+2026-11-27 02:27:43,555 INFO [PEPEUSDT] PEPEUSDT FLOW BUY [1h_choch] | Symbol: PEPEUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: BUILDING | Trend Filter: 1h CHoCH | Current Price: 3.59e-06 | CVD% (30m): +31.64% | move +1.99% | VWAP dist +0.79% | vol 1,237,086 | trades 979 | Flow (30m): INFLOW $814,223 | OUTFLOW $422,864 | NET $+391,359 | Size (30m): whale $+227,931 | mid $+154,778 | retail $+8,651 | avg trade $1,264 | CVD% (1h): +27.08% | move +1.99% | VWAP dist +0.86% | vol 1,306,229 | trades 1108 | Flow (1h): INFLOW $830,006 | OUTFLOW $476,223 | NET $+353,783 | Size (1h): whale $+191,916 | mid $+155,368 | retail $+6,498 | avg trade $1,179 | CVD% (15m): +21.29% | Flow (15m): INFLOW $328,618 | OUTFLOW $213,240 | NET $+115,378 | Flow accel (15m/30m): 0.67x [STEADY] | Flow source: MIXED (whale 58% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.1888 | now +0.1452 | Lead score: 15.9 | Spread bps: 27.82 | Footprint: row 1e-08, ratio 1.73x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:27:43 AM | Alert Time (PKT): 2026-11-27 07:27:43 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +1.63% | 1h +3.00% | funding -0.0028% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (22.5h ago, level 3.55e-06, close 3.56e-06); 4h Bullish CHoCH (86.5h ago, level 3.47e-06, close 3.63e-06); [opposite] 1d Bearish CHoCH (386.5h ago, level 4.59e-06, close 4.52e-06) | HTF context: 1w: Bullish | Futures data: PARTIAL (30m 100%, 1h 85%, 4h 100%) | Futures CVD% (30m): +10.91% | vol $6,209,212 | trades 12170 | fill 100% | Futures Flow (30m): INFLOW $3,443,202 | OUTFLOW $2,766,009 | NET $+677,193 | Futures Size (30m): whale $+73,122 | mid $+513,406 | retail $+90,665 | avg trade $510 | source MIXED (whale 11% of net) | Futures CVD% (1h): +8.89% | vol $6,987,742 | trades 13676 | fill 85% | Futures Flow (1h): INFLOW $3,804,488 | OUTFLOW $3,183,255 | NET $+621,233 | Futures Size (1h): whale $+36,695 | mid $+513,652 | retail $+70,886 | avg trade $511 | source RETAIL-DRIVEN (chop risk) | Futures CVD% (15m): -1.12% | NET $-35,868 | fill 100% | Futures OBI: now +0.9950 | spread 0.28 bps | price 3.5918e-06 | Futures gate: BLOCKED (weak_15m_cvd) [observe-only] | Futures feed: trades 13676 msgs (last 0.2s) | book 20930 msgs (last 0.1s)
+2026-11-27 02:27:45,557 INFO [LINKUSDT] LINKUSDT FLOW BUY [1h_choch] | Symbol: LINKUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: BUILDING | Trend Filter: 1h CHoCH | Current Price: 9.511 | CVD% (30m): +14.45% | move +1.93% | VWAP dist +0.45% | vol 532,362 | trades 2897 | Flow (30m): INFLOW $304,638 | OUTFLOW $227,724 | NET $+76,914 | Size (30m): whale $+9,726 | mid $+70,912 | retail $-3,724 | avg trade $184 | CVD% (1h): +13.63% | move +1.56% | VWAP dist +0.55% | vol 569,034 | trades 3158 | Flow (1h): INFLOW $323,302 | OUTFLOW $245,732 | NET $+77,570 | Size (1h): whale $+9,726 | mid $+69,889 | retail $-2,045 | avg trade $180 | CVD% (15m): +20.93% | Flow (15m): INFLOW $191,134 | OUTFLOW $124,962 | NET $+66,172 | Flow accel (15m/30m): 1.45x [STEADY] | Flow source: WHALE vs RETAIL divergence (whale 13% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.1525 | now +0.0350 | Lead score: 7.5 | Spread bps: 1.05 | Footprint: row 0.003, ratio 2.81x, stacked x2, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:27:45 AM | Alert Time (PKT): 2026-11-27 07:27:45 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.99% | 1h +0.86% | funding +0.0058% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (32.5h ago, level 8.936, close 8.98); [opposite] 4h Bearish CHoCH (46.5h ago, level 8.712, close 8.709); [opposite] 1d Bearish CHoCH (986.5h ago, level 12.091, close 11.986) | HTF context: 1w: Bullish | Futures data: PARTIAL (30m 100%, 1h 85%, 4h 100%) | Futures CVD% (30m): +19.87% | vol $1,565,496 | trades 4831 | fill 100% | Futures Flow (30m): INFLOW $938,289 | OUTFLOW $627,207 | NET $+311,082 | Futures Size (30m): whale $-62,086 | mid $+303,573 | retail $+69,594 | avg trade $324 | source MIXED (whale -20% of net) | Futures CVD% (1h): +14.72% | vol $1,813,288 | trades 5504 | fill 85% | Futures Flow (1h): INFLOW $1,040,130 | OUTFLOW $773,158 | NET $+266,972 | Futures Size (1h): whale $-64,028 | mid $+258,204 | retail $+72,796 | avg trade $329 | source MIXED (whale -24% of net) | Futures CVD% (15m): +16.21% | NET $+159,373 | fill 100% | Futures OBI: now +0.2658 | spread 1.05 bps | price 9.505 | Futures gate: ALIGNED (aligned) [observe-only] | Futures feed: trades 5504 msgs (last 2.4s) | book 20059 msgs (last 0.1s)
+2026-11-27 02:27:45,557 INFO [SEIUSDT] SEIUSDT FLOW BUY [1h_choch] | Symbol: SEIUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 0.03883 | CVD% (30m): +17.86% | move +0.73% | VWAP dist +0.02% | vol 126,996 | trades 1332 | Flow (30m): INFLOW $74,841 | OUTFLOW $52,155 | NET $+22,685 | Size (30m): whale $-2,062 | mid $+21,956 | retail $+2,792 | avg trade $95 | CVD% (1h): +15.06% | move +0.28% | VWAP dist +0.06% | vol 192,836 | trades 1812 | Flow (1h): INFLOW $110,942 | OUTFLOW $81,894 | NET $+29,048 | Size (1h): whale $+11,511 | mid $+10,908 | retail $+6,628 | avg trade $106 | CVD% (15m): +14.05% | Flow (15m): INFLOW $43,889 | OUTFLOW $33,076 | NET $+10,813 | Flow accel (15m/30m): 0.79x [STEADY] | Flow source: MIXED (whale -9% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.2981 | now +0.4444 | Lead score: 24.6 | Spread bps: 2.57 | Footprint: row 1e-05, ratio 0.14x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:27:45 AM | Alert Time (PKT): 2026-11-27 07:27:45 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -1.63% | 1h -2.28% | funding -0.0067% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (33.5h ago, level 0.03261, close 0.0327); 4h Bullish CHoCH (14.5h ago, level 0.03732, close 0.03853); [opposite] 1d Bearish CHoCH (1202.5h ago, level 0.06674, close 0.06611) | HTF context: 1w: Bearish | Futures data: PARTIAL (30m 100%, 1h 85%, 4h 21%) | Futures CVD% (30m): +1.01% | vol $396,324 | trades 2080 | fill 100% | Futures Flow (30m): INFLOW $200,158 | OUTFLOW $196,166 | NET $+3,992 | Futures Size (30m): whale $+32,626 | mid $-4,745 | retail $-23,889 | avg trade $191 | source WHALE vs RETAIL divergence (whale 817% of net) | Futures CVD% (1h): +2.13% | vol $539,457 | trades 2864 | fill 85% | Futures Flow (1h): INFLOW $275,479 | OUTFLOW $263,977 | NET $+11,502 | Futures Size (1h): whale $+36,934 | mid $-2,515 | retail $-22,917 | avg trade $188 | source WHALE vs RETAIL divergence (whale 321% of net) | Futures CVD% (15m): +6.74% | NET $+14,872 | fill 100% | Futures OBI: now -0.1438 | spread 2.58 bps | price 0.03879 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 2864 msgs (last 2.4s) | book 18576 msgs (last 0.1s)
+2026-11-27 02:27:49,561 INFO [NEARUSDT] NEARUSDT FLOW BUY [1h_choch] | Symbol: NEARUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: BUILDING | Trend Filter: 1h CHoCH | Current Price: 3.142 | CVD% (30m): +38.90% | move +2.48% | VWAP dist +0.65% | vol 2,234,551 | trades 3211 | Flow (30m): INFLOW $1,551,912 | OUTFLOW $682,639 | NET $+869,273 | Size (30m): whale $+157,702 | mid $+572,124 | retail $+139,447 | avg trade $696 | CVD% (1h): +34.09% | move +2.35% | VWAP dist +0.88% | vol 2,582,222 | trades 3701 | Flow (1h): INFLOW $1,731,207 | OUTFLOW $851,015 | NET $+880,192 | Size (1h): whale $+174,924 | mid $+553,797 | retail $+151,471 | avg trade $698 | CVD% (15m): +48.56% | Flow (15m): INFLOW $936,802 | OUTFLOW $324,394 | NET $+612,408 | Flow accel (15m/30m): 1.25x [STEADY] | Flow source: MIXED (whale 18% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.0675 | now +0.1772 | Lead score: 15.7 | Spread bps: 3.18 | Footprint: row 0.001, ratio 1.93x, stacked x2, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:27:49 AM | Alert Time (PKT): 2026-11-27 07:27:49 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.60% | 1h -1.08% | funding +0.0025% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (31.5h ago, level 2.906, close 2.92); [opposite] 4h Bearish CHoCH (62.5h ago, level 2.846, close 2.819); [opposite] 1d Bearish CHoCH (698.5h ago, level 4.25, close 4.059) | HTF context: 1w: Bearish | Futures data: PARTIAL (30m 100%, 1h 85%, 4h 100%) | Futures CVD% (30m): +22.35% | vol $4,962,873 | trades 4077 | fill 100% | Futures Flow (30m): INFLOW $3,036,015 | OUTFLOW $1,926,859 | NET $+1,109,156 | Futures Size (30m): whale $+99,127 | mid $+814,307 | retail $+195,722 | avg trade $1,217 | source RETAIL-DRIVEN (chop risk) | Futures CVD% (1h): +18.27% | vol $5,615,007 | trades 4650 | fill 85% | Futures Flow (1h): INFLOW $3,320,449 | OUTFLOW $2,294,558 | NET $+1,025,890 | Futures Size (1h): whale $+119,333 | mid $+699,556 | retail $+207,002 | avg trade $1,208 | source RETAIL-DRIVEN (chop risk) | Futures CVD% (15m): +30.11% | NET $+859,821 | fill 100% | Futures OBI: now +0.2013 | spread 3.19 bps | price 3.14 | Futures gate: ALIGNED (aligned) [observe-only] | Futures feed: trades 4650 msgs (last 0.3s) | book 23219 msgs (last 0.1s)
+2026-11-27 02:28:00,362 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:29:00,954 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:30:01,572 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:31:02,187 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:32:02,813 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:33:03,452 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:34:04,089 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:35:04,722 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:36:05,380 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:36:41,985 INFO [DIAG] health: uptime=1.0h msg_rate=262.2/s signals=5 eval_cycles=1799 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 02:36:41,985 INFO [DIAG] 1d_choch gates over last 30min: duplicate_legs=90% underfill=10%
+2026-11-27 02:36:41,985 INFO [DIAG] 1h_choch gates over last 30min: underfill=70% flow_weak=18% already_fired=7% trend_buy_against_1h_bearish=4% extended=1% trend_sell_against_1h_bullish=0% signal=0%
+2026-11-27 02:36:41,985 INFO [DIAG] 4h_choch gates over last 30min: underfill=70% flow_weak=18% trend_buy_against_4h_bearish=9% sym_dup=3% extended=0% trend_sell_against_4h_bullish=0%
+2026-11-27 02:37:06,051 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:38:06,702 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:39:07,375 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:40:08,049 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:41:08,705 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:42:09,375 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:43:10,044 INFO [ENGINE] State saved | alerts_today=5 connected=True
+2026-11-27 02:43:56,189 INFO [ADAUSDT] ADAUSDT FLOW BUY [1h_choch] | Symbol: ADAUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 0.1516 | CVD% (30m): +25.29% | move +0.66% | VWAP dist -0.05% | vol 518,565 | trades 874 | Flow (30m): INFLOW $324,865 | OUTFLOW $193,700 | NET $+131,164 | Size (30m): whale $-7,072 | mid $+127,638 | retail $+10,599 | avg trade $593 | CVD% (1h): +21.50% | move +1.40% | VWAP dist +0.32% | vol 828,941 | trades 1332 | Flow (1h): INFLOW $503,565 | OUTFLOW $325,376 | NET $+178,189 | Size (1h): whale $+10,463 | mid $+144,631 | retail $+23,096 | avg trade $622 | CVD% (15m): +20.65% | Flow (15m): INFLOW $164,601 | OUTFLOW $108,245 | NET $+56,356 | Flow accel (15m/30m): 0.82x [STEADY] | Flow source: MIXED (whale -5% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.0301 | now -0.0585 | Lead score: 38.1 | Spread bps: 6.60 | Footprint: row 0.0001, ratio 0.00x, stacked x0, ok=no | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:43:56 AM | Alert Time (PKT): 2026-11-27 07:43:56 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.19% | 1h +0.55% | funding +0.0100% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (31.7h ago, level 0.1462, close 0.1463); [opposite] 4h Bearish CHoCH (42.7h ago, level 0.142, close 0.1399); [opposite] 1d Bearish CHoCH (1202.7h ago, level 0.2389, close 0.2322) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +23.69% | vol $1,442,797 | trades 1099 | fill 100% | Futures Flow (30m): INFLOW $892,332 | OUTFLOW $550,465 | NET $+341,867 | Futures Size (30m): whale $+84,596 | mid $+197,614 | retail $+59,656 | avg trade $1,313 | source MIXED (whale 25% of net) | Futures CVD% (1h): +18.37% | vol $2,344,945 | trades 1823 | fill 100% | Futures Flow (1h): INFLOW $1,387,912 | OUTFLOW $957,033 | NET $+430,879 | Futures Size (1h): whale $+224,333 | mid $+218,539 | retail $-11,993 | avg trade $1,286 | source WHALE vs RETAIL divergence (whale 52% of net) | Futures CVD% (15m): +20.19% | NET $+104,480 | fill 100% | Futures OBI: now -0.0687 | spread 6.60 bps | price 0.1515 | Futures gate: BLOCKED (weak_obi) [observe-only] | Futures feed: trades 1938 msgs (last 2.3s) | book 25173 msgs (last 0.1s)
+2026-11-27 02:44:10,710 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:45:11,368 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:46:12,051 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:47:12,713 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:48:13,387 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:49:14,056 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:50:14,722 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:51:15,390 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:52:16,070 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:53:16,738 INFO [ENGINE] State saved | alerts_today=6 connected=True
+2026-11-27 02:53:30,553 INFO [BNBUSDT] BNBUSDT FLOW BUY [1h_choch] | Symbol: BNBUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 562.23 | CVD% (30m): +18.77% | move +0.32% | VWAP dist -0.19% | vol 2,699,353 | trades 9556 | Flow (30m): INFLOW $1,602,956 | OUTFLOW $1,096,397 | NET $+506,559 | Size (30m): whale $+272,323 | mid $+234,393 | retail $-157 | avg trade $282 | CVD% (1h): +9.47% | move +1.12% | VWAP dist +0.07% | vol 4,369,763 | trades 17151 | Flow (1h): INFLOW $2,391,819 | OUTFLOW $1,977,944 | NET $+413,875 | Size (1h): whale $+160,666 | mid $+190,585 | retail $+62,624 | avg trade $255 | CVD% (15m): +18.86% | Flow (15m): INFLOW $485,004 | OUTFLOW $331,086 | NET $+153,918 | Flow accel (15m/30m): 1.01x [STEADY] | Flow source: WHALE vs RETAIL divergence (whale 54% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.0300 | now +0.0113 | Lead score: 59.1 | Spread bps: 0.18 | Footprint: row 0.17, ratio 9.75x, stacked x3, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:53:30 AM | Alert Time (PKT): 2026-11-27 07:53:30 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.14% | 1h +0.91% | funding +0.0100% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (33.9h ago, level 544.92, close 548.5); [opposite] 4h Bearish CHoCH (354.9h ago, level 670.06, close 664.41); [opposite] 1d Bearish CHoCH (698.9h ago, level 705.86, close 698.46) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +31.14% | vol $1,602,880 | trades 5382 | fill 100% | Futures Flow (30m): INFLOW $1,051,023 | OUTFLOW $551,857 | NET $+499,166 | Futures Size (30m): whale $+247,001 | mid $+184,442 | retail $+67,724 | avg trade $298 | source MIXED (whale 49% of net) | Futures CVD% (1h): +33.10% | vol $3,414,540 | trades 10198 | fill 100% | Futures Flow (1h): INFLOW $2,272,386 | OUTFLOW $1,142,154 | NET $+1,130,233 | Futures Size (1h): whale $+565,700 | mid $+417,034 | retail $+147,499 | avg trade $335 | source MIXED (whale 50% of net) | Futures CVD% (15m): +22.87% | NET $+84,491 | fill 100% | Futures OBI: now +0.9166 | spread 0.18 bps | price 561.97 | Futures gate: ALIGNED (aligned) [observe-only] | Futures feed: trades 10761 msgs (last 0.7s) | book 33273 msgs (last 0.1s)
+2026-11-27 02:54:17,407 INFO [ENGINE] State saved | alerts_today=7 connected=True
+2026-11-27 02:55:18,094 INFO [ENGINE] State saved | alerts_today=7 connected=True
+2026-11-27 02:56:18,765 INFO [ENGINE] State saved | alerts_today=7 connected=True
+2026-11-27 02:57:19,423 INFO [ENGINE] State saved | alerts_today=7 connected=True
+2026-11-27 02:58:06,744 INFO [PEPEUSDT] PEPEUSDT FLOW BUY [4h_choch] | Symbol: PEPEUSDT | Rule: 4h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 4h CHoCH | Current Price: 3.58e-06 | CVD% (30m): +5.89% | move +0.00% | VWAP dist -0.27% | vol 832,187 | trades 623 | Flow (30m): INFLOW $440,597 | OUTFLOW $391,590 | NET $+49,006 | Size (30m): whale $-25,176 | mid $+62,527 | retail $+11,655 | avg trade $1,336 | CVD% (1h): +20.12% | move +1.99% | VWAP dist +0.19% | vol 2,089,828 | trades 1604 | Flow (1h): INFLOW $1,255,183 | OUTFLOW $834,645 | NET $+420,538 | Size (1h): whale $+256,100 | mid $+135,876 | retail $+28,563 | avg trade $1,303 | CVD% (15m): +10.41% | Flow (15m): INFLOW $183,981 | OUTFLOW $149,290 | NET $+34,691 | Flow accel (15m/30m): 1.77x [ACCELERATING] | Flow source: MIXED (whale -51% of net) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): +0.2144 | now +0.2008 | Lead score: 117.8 | Spread bps: 27.89 | Footprint: row 1e-08, ratio 0.00x, stacked x0, ok=no | Sessions: Asia | Alert Time (UTC): 2026-11-27 02:58:06 AM | Alert Time (PKT): 2026-11-27 07:58:06 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.68% | 1h +4.63% | funding +0.0007% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (23.0h ago, level 3.55e-06, close 3.56e-06); 4h Bullish CHoCH (87.0h ago, level 3.47e-06, close 3.63e-06); [opposite] 1d Bearish CHoCH (387.0h ago, level 4.59e-06, close 4.52e-06) | HTF context: 1w: Bullish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +0.26% | vol $5,164,673 | trades 10472 | fill 100% | Futures Flow (30m): INFLOW $2,589,053 | OUTFLOW $2,575,621 | NET $+13,432 | Futures Size (30m): whale $+141,472 | mid $-112,482 | retail $-15,558 | avg trade $493 | source WHALE vs RETAIL divergence (whale 1053% of net) | Futures CVD% (1h): +5.86% | vol $11,410,543 | trades 22734 | fill 100% | Futures Flow (1h): INFLOW $6,039,493 | OUTFLOW $5,371,050 | NET $+668,443 | Futures Size (1h): whale $+252,593 | mid $+329,933 | retail $+85,916 | avg trade $502 | source MIXED (whale 38% of net) | Futures CVD% (15m): +16.47% | NET $+477,740 | fill 100% | Futures OBI: now -0.9698 | spread 0.28 bps | price 3.5858e-06 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 24260 msgs (last 1.0s) | book 36192 msgs (last 0.2s)
+2026-11-27 02:58:20,094 INFO [ENGINE] State saved | alerts_today=8 connected=True
+2026-11-27 02:59:20,786 INFO [ENGINE] State saved | alerts_today=8 connected=True
+2026-11-27 03:00:07,628 INFO [CHOCH] BTCUSDT 1h BULLISH CHoCH | level 59489.63000000 close 59603.25000000
+2026-11-27 03:00:07,635 INFO [CHOCH] ETHUSDT 1h BULLISH CHoCH | level 1665.52000000 close 1679.15000000
+2026-11-27 03:00:07,640 INFO [CHOCH] SOLUSDT 1h BULLISH CHoCH | level 69.03000000 close 69.44000000
+2026-11-27 03:00:07,643 INFO [CHOCH] ZECUSDT 1h BULLISH CHoCH | level 744.43000000 close 749.76000000
+2026-11-27 03:00:07,994 INFO [CHOCH] XRPUSDT 1h BULLISH CHoCH | level 0.92740000 close 0.92880000
+2026-11-27 03:00:08,003 INFO [CHOCH] NEARUSDT 1h BULLISH CHoCH | level 2.90600000 close 2.92000000
+2026-11-27 03:00:08,009 INFO [CHOCH] HYPEUSDT 1h BULLISH CHoCH | level 62.16000000 close 63.19000000
+2026-11-27 03:00:08,035 INFO [CHOCH] BNBUSDT 1h BULLISH CHoCH | level 544.92000000 close 548.50000000
+2026-11-27 03:00:08,357 INFO [CHOCH] PEPEUSDT 1h BULLISH CHoCH | level 0.00000355 close 0.00000356
+2026-11-27 03:00:08,370 INFO [CHOCH] SUIUSDT 1h BULLISH CHoCH | level 0.67720000 close 0.68020000
+2026-11-27 03:00:08,372 INFO [CHOCH] UNIUSDT 1h BULLISH CHoCH | level 4.73500000 close 4.82600000
+2026-11-27 03:00:08,398 INFO [CHOCH] TRXUSDT 1h BULLISH CHoCH | level 0.30420000 close 0.30430000
+2026-11-27 03:00:08,723 INFO [CHOCH] DOGEUSDT 1h BULLISH CHoCH | level 0.05724000 close 0.05750000
+2026-11-27 03:00:08,736 INFO [CHOCH] ADAUSDT 1h BULLISH CHoCH | level 0.14620000 close 0.14630000
+2026-11-27 03:00:08,738 INFO [CHOCH] LTCUSDT 1h BULLISH CHoCH | level 41.04000000 close 41.78000000
+2026-11-27 03:00:08,770 INFO [CHOCH] ENAUSDT 1h BEARISH CHoCH | level 0.09870000 close 0.09860000
+2026-11-27 03:00:08,824 INFO [UNIUSDT] UNIUSDT FLOW BUY [1h_choch] | Symbol: UNIUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: COUNTER-MOVE (price against flow) | Trend Filter: 1h CHoCH | Current Price: 4.827 | CVD% (30m): +11.83% | move -0.54% | VWAP dist -0.67% | vol 1,452,287 | trades 2263 | Flow (30m): INFLOW $812,080 | OUTFLOW $640,207 | NET $+171,873 | Size (30m): whale $+7,886 | mid $+166,297 | retail $-2,310 | avg trade $642 | CVD% (1h): +11.27% | move +2.94% | VWAP dist -0.13% | vol 5,551,054 | trades 7612 | Flow (1h): INFLOW $3,088,369 | OUTFLOW $2,462,685 | NET $+625,684 | Size (1h): whale $+136,967 | mid $+486,115 | retail $+2,602 | avg trade $729 | CVD% (15m): +15.79% | Flow (15m): INFLOW $307,214 | OUTFLOW $223,417 | NET $+83,798 | Flow accel (15m/30m): 1.33x [STEADY] | Flow source: WHALE vs RETAIL divergence (whale 5% of net) | Pressure test: ABSORPTION - flow is losing, bigger player opposite | OBI (short): +0.2473 | now +0.2891 | Lead score: 22.1 | Spread bps: 2.07 | Footprint: row 0.001, ratio 0.89x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:00:08 AM | Alert Time (PKT): 2026-11-27 08:00:08 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.30% | 1h -1.96% | funding +0.0100% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (1.0h ago, level 4.735, close 4.826); [opposite] 4h Bearish CHoCH (51.0h ago, level 4.631, close 4.61); [opposite] 1d Bearish CHoCH (1227.0h ago, level 8.447, close 7.91) | HTF context: 1w: Bullish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +15.81% | vol $3,493,201 | trades 4160 | fill 100% | Futures Flow (30m): INFLOW $2,022,738 | OUTFLOW $1,470,462 | NET $+552,276 | Futures Size (30m): whale $-82,991 | mid $+484,677 | retail $+150,591 | avg trade $840 | source RETAIL-DRIVEN (chop risk) | Futures CVD% (1h): +24.50% | vol $14,899,762 | trades 18998 | fill 100% | Futures Flow (1h): INFLOW $9,275,105 | OUTFLOW $5,624,657 | NET $+3,650,448 | Futures Size (1h): whale $+534,193 | mid $+3,201,396 | retail $-85,141 | avg trade $784 | source WHALE vs RETAIL divergence (whale 15% of net) | Futures CVD% (15m): +14.89% | NET $+211,224 | fill 100% | Futures OBI: now -0.2122 | spread 2.07 bps | price 4.824 | Futures gate: BLOCKED (weak_obi) [observe-only] | Futures feed: trades 19356 msgs (last 0.5s) | book 41865 msgs (last 0.1s)
+2026-11-27 03:00:09,090 INFO [CHOCH] LINKUSDT 1h BULLISH CHoCH | level 8.93600000 close 8.98000000
+2026-11-27 03:00:09,102 INFO [CHOCH] AAVEUSDT 1h BULLISH CHoCH | level 95.81000000 close 96.16000000
+2026-11-27 03:00:09,109 INFO [CHOCH] SEIUSDT 1h BULLISH CHoCH | level 0.03261000 close 0.03270000
+2026-11-27 03:00:09,134 INFO [CHOCH] SSVUSDT 1h BULLISH CHoCH | level 1.61100000 close 1.61300000
+2026-11-27 03:00:10,826 INFO [AAVEUSDT] AAVEUSDT FLOW BUY [1h_choch] | Symbol: AAVEUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 96.2 | CVD% (30m): +27.28% | move -0.10% | VWAP dist -0.46% | vol 177,549 | trades 1211 | Flow (30m): INFLOW $112,991 | OUTFLOW $64,558 | NET $+48,433 | Size (30m): whale $+34,682 | mid $+16,570 | retail $-2,819 | avg trade $147 | CVD% (1h): +21.77% | move +1.58% | VWAP dist +0.01% | vol 387,823 | trades 2836 | Flow (1h): INFLOW $236,126 | OUTFLOW $151,697 | NET $+84,428 | Size (1h): whale $+25,274 | mid $+50,591 | retail $+8,563 | avg trade $137 | CVD% (15m): +21.59% | Flow (15m): INFLOW $50,619 | OUTFLOW $32,640 | NET $+17,980 | Flow accel (15m/30m): 0.79x [STEADY] | Flow source: WHALE vs RETAIL divergence (whale 72% of net) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): +0.2433 | now +0.5428 | Lead score: 262.7 | Spread bps: 1.04 | Footprint: row 0.03, ratio 0.12x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:00:10 AM | Alert Time (PKT): 2026-11-27 08:00:10 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.00% | 1h -1.01% | funding -0.0032% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (1.0h ago, level 95.81, close 96.16); [opposite] 4h Bearish CHoCH (71.0h ago, level 95.56, close 95.5); [opposite] 1d Bearish CHoCH (1107.0h ago, level 159.85, close 156.93) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): -6.54% | vol $1,000,717 | trades 3368 | fill 100% | Futures Flow (30m): INFLOW $467,618 | OUTFLOW $533,100 | NET $-65,482 | Futures Size (30m): whale $-85,747 | mid $-22,072 | retail $+42,337 | avg trade $297 | source MIXED (whale -131% of net) | Futures CVD% (1h): +13.74% | vol $2,267,319 | trades 7200 | fill 100% | Futures Flow (1h): INFLOW $1,289,370 | OUTFLOW $977,949 | NET $+311,421 | Futures Size (1h): whale $+109,508 | mid $+119,010 | retail $+82,903 | avg trade $315 | source MIXED (whale 35% of net) | Futures CVD% (15m): -11.61% | NET $-47,128 | fill 100% | Futures OBI: now +0.8220 | spread 1.04 bps | price 96.1 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 7909 msgs (last 0.3s) | book 32310 msgs (last 0.0s)
+2026-11-27 03:00:21,480 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:01:22,163 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:02:22,851 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:03:23,530 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:04:24,210 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:05:24,903 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:06:25,611 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:06:41,986 INFO [DIAG] health: uptime=1.5h msg_rate=188.1/s signals=10 eval_cycles=2698 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 03:06:41,986 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=62% trend_buy_against_1d_bearish=27% underfill=10% duplicate_legs=1%
+2026-11-27 03:06:41,986 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=73% already_fired=15% trend_buy_against_1h_bearish=7% extended=4% trend_1h_refresh_pending=0% signal=0%
+2026-11-27 03:06:41,986 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=73% trend_buy_against_4h_bearish=23% sym_dup=3% already_fired=1% signal=0%
+2026-11-27 03:07:26,302 INFO [ENGINE] State saved | alerts_today=10 connected=True
+2026-11-27 03:07:35,123 INFO [ZECUSDT] ZECUSDT FLOW BUY [1h_choch] | Symbol: ZECUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 748.51 | CVD% (30m): +20.65% | move +0.73% | VWAP dist +0.36% | vol 13,867,009 | trades 42772 | Flow (30m): INFLOW $8,365,611 | OUTFLOW $5,501,398 | NET $+2,864,213 | Size (30m): whale $+3,155,666 | mid $+532,910 | retail $-824,363 | avg trade $324 | CVD% (1h): +10.75% | move +3.90% | VWAP dist +1.16% | vol 24,844,402 | trades 70788 | Flow (1h): INFLOW $13,757,946 | OUTFLOW $11,086,456 | NET $+2,671,490 | Size (1h): whale $+3,388,168 | mid $+491,804 | retail $-1,208,481 | avg trade $351 | CVD% (15m): +6.06% | Flow (15m): INFLOW $2,428,520 | OUTFLOW $2,150,921 | NET $+277,599 | Flow accel (15m/30m): 0.29x [DECAYING (stale window)] | Flow source: WHALE vs RETAIL divergence (whale 110% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.5001 | now +0.7302 | Lead score: 28.5 | Spread bps: 0.53 | Footprint: row 0.22, ratio 0.65x, stacked x2, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:07:35 AM | Alert Time (PKT): 2026-11-27 08:07:35 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -1.23% | 1h -1.22% | funding +0.0100% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (33.1h ago, level 744.43, close 749.76); [opposite] 4h Bearish CHoCH (79.1h ago, level 776.98, close 776.93); [opposite] 1d Bearish CHoCH (1203.1h ago, level 1271.09, close 1187.02) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +5.67% | vol $65,324,185 | trades 64745 | fill 100% | Futures Flow (30m): INFLOW $34,513,491 | OUTFLOW $30,810,693 | NET $+3,702,798 | Futures Size (30m): whale $+2,963,296 | mid $+954,566 | retail $-215,064 | avg trade $1,009 | source WHALE vs RETAIL divergence (whale 80% of net) | Futures CVD% (1h): +5.15% | vol $149,900,906 | trades 169565 | fill 100% | Futures Flow (1h): INFLOW $78,811,344 | OUTFLOW $71,089,562 | NET $+7,721,781 | Futures Size (1h): whale $+3,604,079 | mid $+3,453,418 | retail $+664,284 | avg trade $884 | source MIXED (whale 47% of net) | Futures CVD% (15m): +13.61% | NET $+4,519,858 | fill 100% | Futures OBI: now -0.9895 | spread 0.13 bps | price 747.95 | Futures gate: BLOCKED (weak_obi) [observe-only] | Futures feed: trades 197792 msgs (last 0.2s) | book 51424 msgs (last 0.0s)
+2026-11-27 03:08:27,009 INFO [ENGINE] State saved | alerts_today=11 connected=True
+2026-11-27 03:09:27,708 INFO [ENGINE] State saved | alerts_today=11 connected=True
+2026-11-27 03:10:15,233 INFO [SUIUSDT] SUIUSDT FLOW SELL [4h_choch] | Symbol: SUIUSDT | Rule: 4h_choch CONFLUENCE | Direction: SELL | Stage: EARLY (flow leads price) | Trend Filter: 4h CHoCH | Current Price: 0.685 | CVD% (30m): -38.13% | move -0.12% | VWAP dist +0.40% | vol 1,827,588 | trades 1933 | Flow (30m): INFLOW $565,369 | OUTFLOW $1,262,219 | NET $-696,850 | Size (30m): whale $-459,511 | mid $-293,801 | retail $+56,462 | avg trade $945 | CVD% (1h): -25.87% | move +1.03% | VWAP dist +0.40% | vol 2,730,402 | trades 4287 | Flow (1h): INFLOW $1,012,024 | OUTFLOW $1,718,378 | NET $-706,354 | Size (1h): whale $-534,557 | mid $-224,508 | retail $+52,712 | avg trade $637 | CVD% (15m): -45.35% | Flow (15m): INFLOW $356,082 | OUTFLOW $947,092 | NET $-591,010 | Flow accel (15m/30m): 1.19x [STEADY] | Flow source: WHALE vs RETAIL divergence (whale 66% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): -0.0311 | now -0.3647 | Lead score: 326.9 | Spread bps: 1.46 | Footprint: row 0.0002, ratio 0.27x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:10:15 AM | Alert Time (PKT): 2026-11-27 08:10:15 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.40% | 1h +0.45% | funding +0.0093% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: [opposite] 1h Bullish CHoCH (1.2h ago, level 0.6772, close 0.6802); 4h Bearish CHoCH (63.2h ago, level 0.6408, close 0.6397); 1d Bearish CHoCH (1203.2h ago, level 1.1032, close 1.0408) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): -8.74% | vol $1,845,150 | trades 2157 | fill 100% | Futures Flow (30m): INFLOW $841,986 | OUTFLOW $1,003,164 | NET $-161,179 | Futures Size (30m): whale $+128,529 | mid $+29,985 | retail $+2,664 | avg trade $855 | source WHALE-DRIVEN (80% of net) | Futures CVD% (1h): +11.03% | vol $4,099,161 | trades 5881 | fill 100% | Futures Flow (1h): INFLOW $2,275,620 | OUTFLOW $1,823,541 | NET $+452,080 | Futures Size (1h): whale $-120,256 | mid $-237,948 | retail $-93,875 | avg trade $697 | source MIXED (whale -27% of net) | Futures CVD% (15m): -23.16% | NET $-268,639 | fill 100% | Futures OBI: now -0.1280 | spread 1.46 bps | price 0.6846 | Futures gate: BLOCKED (weak_1h_cvd) [observe-only] | Futures feed: trades 7745 msgs (last 0.0s) | book 44750 msgs (last 0.0s)
+2026-11-27 03:10:28,404 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:11:29,137 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:12:29,820 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:13:30,502 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:14:31,190 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:15:31,892 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:16:32,590 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:17:33,290 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:18:34,000 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:19:34,689 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:20:35,414 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:21:36,122 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:22:36,835 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:23:37,537 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:24:38,218 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:25:38,931 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:26:39,636 INFO [ENGINE] State saved | alerts_today=12 connected=True
+2026-11-27 03:26:43,890 INFO [HYPEUSDT] HYPEUSDT FLOW BUY [1h_choch] | Symbol: HYPEUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: BUILDING | Trend Filter: 1h CHoCH | Current Price: 65.93 | CVD% (30m): +16.90% | move +1.49% | VWAP dist +0.25% | vol 2,275,300 | trades 3959 | Flow (30m): INFLOW $1,329,869 | OUTFLOW $945,431 | NET $+384,439 | Size (30m): whale $+100,732 | mid $+105,329 | retail $+178,378 | avg trade $575 | CVD% (1h): +17.64% | move +1.68% | VWAP dist +1.07% | vol 5,388,896 | trades 8457 | Flow (1h): INFLOW $3,169,883 | OUTFLOW $2,219,013 | NET $+950,870 | Size (1h): whale $+375,175 | mid $+138,255 | retail $+437,440 | avg trade $637 | CVD% (15m): +3.03% | Flow (15m): INFLOW $511,943 | OUTFLOW $481,832 | NET $+30,110 | Flow accel (15m/30m): 0.18x [DECAYING (stale window)] | Flow source: RETAIL-DRIVEN (chop risk) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.0317 | now +0.1133 | Lead score: 11.3 | Spread bps: 1.52 | Footprint: row 0.02, ratio 29.67x, stacked x5, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:26:43 AM | Alert Time (PKT): 2026-11-27 08:26:43 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.76% | 1h +3.40% | funding +0.0100% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (7.4h ago, level 62.16, close 63.19); [opposite] 4h Bearish CHoCH (439.4h ago, level 76.25, close 74.56); [opposite] 1d Bearish CHoCH (459.4h ago, level 76.25, close 74.56) | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): -3.82% | vol $11,493,848 | trades 31905 | fill 100% | Futures Flow (30m): INFLOW $5,527,624 | OUTFLOW $5,966,224 | NET $-438,601 | Futures Size (30m): whale $+97,858 | mid $-520,165 | retail $-16,294 | avg trade $360 | source WHALE vs RETAIL divergence (whale 22% of net) | Futures CVD% (1h): -9.22% | vol $22,997,533 | trades 61980 | fill 100% | Futures Flow (1h): INFLOW $10,439,100 | OUTFLOW $12,558,434 | NET $-2,119,334 | Futures Size (1h): whale $-739,852 | mid $-1,272,383 | retail $-107,099 | avg trade $371 | source MIXED (whale -35% of net) | Futures CVD% (15m): -9.82% | NET $-505,077 | fill 100% | Futures OBI: now +0.8046 | spread 0.15 bps | price 65.893 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 92857 msgs (last 0.1s) | book 55391 msgs (last 0.0s)
+2026-11-27 03:27:40,420 INFO [ENGINE] State saved | alerts_today=13 connected=True
+2026-11-27 03:28:13,952 INFO [TRXUSDT] TRXUSDT FLOW BUY [1h_choch] | Symbol: TRXUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 0.3055 | CVD% (30m): +47.50% | move +0.16% | VWAP dist +0.03% | vol 652,775 | trades 4115 | Flow (30m): INFLOW $481,431 | OUTFLOW $171,344 | NET $+310,087 | Size (30m): whale $+38,276 | mid $+57,154 | retail $+214,656 | avg trade $159 | CVD% (1h): +59.96% | move +0.30% | VWAP dist +0.11% | vol 1,269,576 | trades 8639 | Flow (1h): INFLOW $1,015,433 | OUTFLOW $254,143 | NET $+761,290 | Size (1h): whale $+239,818 | mid $+57,942 | retail $+463,530 | avg trade $147 | CVD% (15m): +33.45% | Flow (15m): INFLOW $153,459 | OUTFLOW $76,526 | NET $+76,933 | Flow accel (15m/30m): 0.70x [STEADY] | Flow source: RETAIL-DRIVEN (chop risk) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.0300 | now +0.1183 | Lead score: 289.8 | Spread bps: 3.27 | Footprint: row 0.0001, ratio 12.17x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:28:13 AM | Alert Time (PKT): 2026-11-27 08:28:13 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.08% | 1h -0.23% | funding +0.0063% | flat | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (7.5h ago, level 0.3042, close 0.3043); [opposite] 4h Bearish CHoCH (159.5h ago, level 0.3048, close 0.3032); [opposite] 1d Bearish CHoCH (675.5h ago, level 0.3277, close 0.3272) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +38.60% | vol $345,765 | trades 1858 | fill 100% | Futures Flow (30m): INFLOW $239,620 | OUTFLOW $106,145 | NET $+133,474 | Futures Size (30m): whale $+43,515 | mid $+70,357 | retail $+19,602 | avg trade $186 | source MIXED (whale 33% of net) | Futures CVD% (1h): +39.53% | vol $558,974 | trades 2429 | fill 100% | Futures Flow (1h): INFLOW $389,967 | OUTFLOW $169,007 | NET $+220,960 | Futures Size (1h): whale $+54,127 | mid $+143,159 | retail $+23,674 | avg trade $230 | source MIXED (whale 24% of net) | Futures CVD% (15m): +22.10% | NET $+24,991 | fill 100% | Futures OBI: now +0.6902 | spread 0.33 bps | price 0.30545 | Futures gate: ALIGNED (aligned) [observe-only] | Futures feed: trades 3287 msgs (last 3.7s) | book 21155 msgs (last 0.2s)
+2026-11-27 03:28:41,154 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:29:41,860 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:30:42,568 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:31:43,326 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:32:44,015 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:33:44,736 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:34:45,448 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:35:46,156 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:36:41,987 INFO [DIAG] health: uptime=2.0h msg_rate=165.5/s signals=14 eval_cycles=3597 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 03:36:41,987 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=68% trend_buy_against_1d_bearish=22% underfill=10%
+2026-11-27 03:36:41,987 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=71% already_fired=21% trend_sell_against_1h_bullish=4% trend_buy_against_1h_bearish=3% extended=0% signal=0%
+2026-11-27 03:36:41,988 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=71% trend_buy_against_4h_bearish=22% already_fired=7% signal=0%
+2026-11-27 03:36:46,894 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:37:47,581 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:38:48,283 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:39:48,979 INFO [ENGINE] State saved | alerts_today=14 connected=True
+2026-11-27 03:40:46,467 INFO [DOGEUSDT] DOGEUSDT FLOW BUY [1h_choch] | Symbol: DOGEUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 0.05791 | CVD% (30m): +22.30% | move -0.02% | VWAP dist +0.02% | vol 234,644 | trades 832 | Flow (30m): INFLOW $143,488 | OUTFLOW $91,155 | NET $+52,333 | Size (30m): whale $+14,061 | mid $+43,299 | retail $-5,027 | avg trade $282 | CVD% (1h): +10.22% | move +0.16% | VWAP dist +0.22% | vol 735,466 | trades 2163 | Flow (1h): INFLOW $405,313 | OUTFLOW $330,153 | NET $+75,159 | Size (1h): whale $+14,266 | mid $+93,248 | retail $-32,354 | avg trade $340 | CVD% (15m): +36.03% | Flow (15m): INFLOW $54,076 | OUTFLOW $25,428 | NET $+28,648 | Flow accel (15m/30m): 1.62x [ACCELERATING] | Flow source: WHALE vs RETAIL divergence (whale 27% of net) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): +0.0905 | now -0.0019 | Lead score: 446.1 | Spread bps: 1.73 | Footprint: row 2e-05, ratio 1.45x, stacked x3, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:40:46 AM | Alert Time (PKT): 2026-11-27 08:40:46 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.23% | 1h +0.40% | funding +0.0100% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (1.7h ago, level 0.05724, close 0.0575); [opposite] 4h Bearish CHoCH (47.7h ago, level 0.05436, close 0.05429); [opposite] 1d Bearish CHoCH (1755.7h ago, level 0.08229, close 0.08008) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): -6.80% | vol $3,235,421 | trades 1996 | fill 100% | Futures Flow (30m): INFLOW $1,507,729 | OUTFLOW $1,727,692 | NET $-219,964 | Futures Size (30m): whale $-329,508 | mid $+4,405 | retail $+105,139 | avg trade $1,621 | source MIXED (whale -150% of net) | Futures CVD% (1h): +1.75% | vol $9,884,052 | trades 4938 | fill 100% | Futures Flow (1h): INFLOW $5,028,600 | OUTFLOW $4,855,452 | NET $+173,149 | Futures Size (1h): whale $-317,505 | mid $+402,428 | retail $+88,225 | avg trade $2,002 | source MIXED (whale -183% of net) | Futures CVD% (15m): -5.83% | NET $-109,788 | fill 100% | Futures OBI: now -0.0779 | spread 1.73 bps | price 0.05786 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 13493 msgs (last 1.3s) | book 61680 msgs (last 0.2s)
+2026-11-27 03:40:49,717 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:41:50,436 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:42:51,142 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:43:51,838 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:44:52,564 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:45:53,301 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:46:54,002 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:47:54,707 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:48:55,429 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:49:56,128 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:50:56,839 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:51:57,550 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:52:58,261 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:53:58,969 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:54:59,684 INFO [ENGINE] State saved | alerts_today=15 connected=True
+2026-11-27 03:55:25,046 INFO [XRPUSDT] XRPUSDT FLOW BUY [1h_choch] | Symbol: XRPUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 0.9622 | CVD% (30m): +18.39% | move -0.24% | VWAP dist -0.21% | vol 2,360,264 | trades 3930 | Flow (30m): INFLOW $1,397,212 | OUTFLOW $963,052 | NET $+434,160 | Size (30m): whale $+26,870 | mid $+87,956 | retail $+319,335 | avg trade $601 | CVD% (1h): +4.36% | move +0.17% | VWAP dist -0.21% | vol 4,703,963 | trades 6573 | Flow (1h): INFLOW $2,454,626 | OUTFLOW $2,249,336 | NET $+205,290 | Size (1h): whale $+115,899 | mid $-255,500 | retail $+344,891 | avg trade $716 | CVD% (15m): +25.95% | Flow (15m): INFLOW $894,538 | OUTFLOW $525,964 | NET $+368,573 | Flow accel (15m/30m): 1.41x [STEADY] | Flow source: RETAIL-DRIVEN (chop risk) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): +0.0303 | now +0.1228 | Lead score: 77.1 | Spread bps: 1.04 | Footprint: row 0.0003, ratio 0.01x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 03:55:25 AM | Alert Time (PKT): 2026-11-27 08:55:25 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.35% | 1h -0.72% | funding +0.0100% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (33.9h ago, level 0.9274, close 0.9288); [opposite] 4h Bearish CHoCH (43.9h ago, level 0.913, close 0.909); [opposite] 1d Bearish CHoCH (1755.9h ago, level 1.3098, close 1.2833) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +31.95% | vol $3,645,922 | trades 4034 | fill 100% | Futures Flow (30m): INFLOW $2,405,354 | OUTFLOW $1,240,568 | NET $+1,164,787 | Futures Size (30m): whale $+701,044 | mid $+456,715 | retail $+7,027 | avg trade $904 | source WHALE-DRIVEN (60% of net) | Futures CVD% (1h): +11.86% | vol $7,479,736 | trades 8282 | fill 100% | Futures Flow (1h): INFLOW $4,183,478 | OUTFLOW $3,296,259 | NET $+887,219 | Futures Size (1h): whale $-104,118 | mid $+770,337 | retail $+221,000 | avg trade $903 | source RETAIL-DRIVEN (chop risk) | Futures CVD% (15m): +38.08% | NET $+675,557 | fill 100% | Futures OBI: now -0.1809 | spread 1.04 bps | price 0.9617 | Futures gate: BLOCKED (weak_obi) [observe-only] | Futures feed: trades 20856 msgs (last 3.9s) | book 74824 msgs (last 0.1s)
+2026-11-27 03:56:00,422 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 03:57:01,149 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 03:58:01,876 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 03:59:02,613 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:00:03,340 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:00:06,587 INFO [CHOCH] ZECUSDT 1h BULLISH CHoCH | level 744.43000000 close 749.76000000
+2026-11-27 04:00:07,109 INFO [CHOCH] ETHUSDT 1h BULLISH CHoCH | level 1665.52000000 close 1679.15000000
+2026-11-27 04:00:07,110 INFO [CHOCH] BTCUSDT 1h BULLISH CHoCH | level 59489.63000000 close 59603.25000000
+2026-11-27 04:00:07,453 INFO [CHOCH] ZECUSDT 4h BEARISH CHoCH | level 776.98000000 close 776.93000000
+2026-11-27 04:00:07,597 INFO [CHOCH] SOLUSDT 1h BULLISH CHoCH | level 69.03000000 close 69.44000000
+2026-11-27 04:00:07,966 INFO [CHOCH] BTCUSDT 4h BEARISH CHoCH | level 58768.51000000 close 58738.33000000
+2026-11-27 04:00:07,978 INFO [CHOCH] ETHUSDT 4h BEARISH CHoCH | level 1648.35000000 close 1640.95000000
+2026-11-27 04:00:08,405 INFO [CHOCH] XRPUSDT 1h BULLISH CHoCH | level 0.92740000 close 0.92880000
+2026-11-27 04:00:08,406 INFO [CHOCH] SOLUSDT 4h BEARISH CHoCH | level 69.89000000 close 69.05000000
+2026-11-27 04:00:08,643 INFO [CHOCH] NEARUSDT 1h BULLISH CHoCH | level 2.90600000 close 2.92000000
+2026-11-27 04:00:08,688 INFO [CHOCH] BNBUSDT 1h BULLISH CHoCH | level 544.92000000 close 548.50000000
+2026-11-27 04:00:08,864 INFO [CHOCH] HYPEUSDT 1h BULLISH CHoCH | level 62.16000000 close 63.19000000
+2026-11-27 04:00:08,914 INFO [CHOCH] XRPUSDT 4h BEARISH CHoCH | level 0.91300000 close 0.90900000
+2026-11-27 04:00:08,963 INFO [CHOCH] BNBUSDT 4h BEARISH CHoCH | level 670.06000000 close 664.41000000
+2026-11-27 04:00:08,995 INFO [CHOCH] NEARUSDT 4h BEARISH CHoCH | level 2.84600000 close 2.81900000
+2026-11-27 04:00:09,172 INFO [CHOCH] HYPEUSDT 4h BULLISH CHoCH | level 63.03000000 close 66.10000000
+2026-11-27 04:00:09,258 INFO [CHOCH] PEPEUSDT 1h BULLISH CHoCH | level 0.00000355 close 0.00000356
+2026-11-27 04:00:09,327 INFO [CHOCH] SUIUSDT 1h BULLISH CHoCH | level 0.67720000 close 0.68020000
+2026-11-27 04:00:09,358 INFO [CHOCH] UNIUSDT 1h BULLISH CHoCH | level 4.73500000 close 4.82600000
+2026-11-27 04:00:09,497 INFO [CHOCH] TRXUSDT 1h BULLISH CHoCH | level 0.30420000 close 0.30430000
+2026-11-27 04:00:09,507 INFO [CHOCH] PEPEUSDT 4h BULLISH CHoCH | level 0.00000347 close 0.00000363
+2026-11-27 04:00:09,596 INFO [CHOCH] SUIUSDT 4h BEARISH CHoCH | level 0.64080000 close 0.63970000
+2026-11-27 04:00:09,623 INFO [CHOCH] UNIUSDT 4h BEARISH CHoCH | level 4.63100000 close 4.61000000
+2026-11-27 04:00:09,717 INFO [CHOCH] TRXUSDT 4h BULLISH CHoCH | level 0.30490000 close 0.30520000
+2026-11-27 04:00:09,841 INFO [CHOCH] DOGEUSDT 1h BULLISH CHoCH | level 0.05724000 close 0.05750000
+2026-11-27 04:00:09,911 INFO [CHOCH] ADAUSDT 1h BULLISH CHoCH | level 0.14620000 close 0.14630000
+2026-11-27 04:00:09,942 INFO [CHOCH] LTCUSDT 1h BULLISH CHoCH | level 41.04000000 close 41.78000000
+2026-11-27 04:00:10,031 INFO [CHOCH] ENAUSDT 1h BEARISH CHoCH | level 0.09870000 close 0.09860000
+2026-11-27 04:00:10,054 INFO [CHOCH] DOGEUSDT 4h BULLISH CHoCH | level 0.05721000 close 0.05773000
+2026-11-27 04:00:10,127 INFO [CHOCH] ADAUSDT 4h BEARISH CHoCH | level 0.14200000 close 0.13990000
+2026-11-27 04:00:10,166 INFO [CHOCH] LTCUSDT 4h BULLISH CHoCH | level 40.53000000 close 40.57000000
+2026-11-27 04:00:10,247 INFO [CHOCH] ENAUSDT 4h BEARISH CHoCH | level 0.09870000 close 0.09750000
+2026-11-27 04:00:10,366 INFO [CHOCH] LINKUSDT 1h BULLISH CHoCH | level 8.93600000 close 8.98000000
+2026-11-27 04:00:10,440 INFO [CHOCH] SEIUSDT 1h BULLISH CHoCH | level 0.03261000 close 0.03270000
+2026-11-27 04:00:10,483 INFO [CHOCH] AAVEUSDT 1h BULLISH CHoCH | level 95.81000000 close 96.16000000
+2026-11-27 04:00:10,565 INFO [CHOCH] SSVUSDT 1h BULLISH CHoCH | level 1.61100000 close 1.61300000
+2026-11-27 04:00:10,579 INFO [CHOCH] LINKUSDT 4h BEARISH CHoCH | level 8.71200000 close 8.70900000
+2026-11-27 04:00:10,655 INFO [CHOCH] SEIUSDT 4h BULLISH CHoCH | level 0.03732000 close 0.03853000
+2026-11-27 04:00:10,696 INFO [CHOCH] AAVEUSDT 4h BEARISH CHoCH | level 95.56000000 close 95.50000000
+2026-11-27 04:00:10,780 INFO [CHOCH] SSVUSDT 4h BULLISH CHoCH | level 1.62200000 close 1.64800000
+2026-11-27 04:01:04,073 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:02:04,826 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:03:05,550 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:04:06,260 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:05:07,019 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:06:07,745 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:06:41,988 INFO [DIAG] health: uptime=2.5h msg_rate=149.1/s signals=16 eval_cycles=4497 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 04:06:41,988 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=74% trend_buy_against_1d_bearish=25% underfill=0%
+2026-11-27 04:06:41,988 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=70% already_fired=24% trend_buy_against_1h_bearish=4% trend_sell_against_1h_bullish=2% trend_1h_refresh_pending=0% signal=0%
+2026-11-27 04:06:41,988 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=70% trend_buy_against_4h_bearish=26% already_fired=4% trend_4h_refresh_pending=0%
+2026-11-27 04:07:08,531 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:08:09,269 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:09:10,002 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:10:10,745 INFO [ENGINE] State saved | alerts_today=16 connected=True
+2026-11-27 04:10:47,684 INFO [DOGEUSDT] DOGEUSDT FLOW BUY [4h_choch] | Symbol: DOGEUSDT | Rule: 4h_choch CONFLUENCE | Direction: BUY | Stage: COUNTER-MOVE (price against flow) | Trend Filter: 4h CHoCH | Current Price: 0.05771 | CVD% (30m): +4.49% | move -0.35% | VWAP dist -0.08% | vol 352,995 | trades 738 | Flow (30m): INFLOW $184,427 | OUTFLOW $168,567 | NET $+15,860 | Size (30m): whale $+10,076 | mid $+12,859 | retail $-7,075 | avg trade $478 | CVD% (1h): +11.63% | move -0.36% | VWAP dist -0.17% | vol 587,507 | trades 1569 | Flow (1h): INFLOW $327,916 | OUTFLOW $259,591 | NET $+68,325 | Size (1h): whale $+23,538 | mid $+52,092 | retail $-7,305 | avg trade $374 | CVD% (15m): +9.98% | Flow (15m): INFLOW $48,109 | OUTFLOW $39,377 | NET $+8,732 | Flow accel (15m/30m): 2.22x [ACCELERATING] | Flow source: WHALE vs RETAIL divergence (whale 64% of net) | Pressure test: ABSORPTION - flow is losing, bigger player opposite | OBI (short): +0.1051 | now +0.1413 | Lead score: 13.0 | Spread bps: 1.73 | Footprint: row 2e-05, ratio 3.66x, stacked x2, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 04:10:47 AM | Alert Time (PKT): 2026-11-27 09:10:47 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.21% | 1h +0.92% | funding +0.0100% | NEW SHORTS (strong) | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (2.2h ago, level 0.05724, close 0.0575); 4h Bullish CHoCH (4.2h ago, level 0.05721, close 0.05773); [opposite] 1d Bearish CHoCH (1756.2h ago, level 0.08229, close 0.08008) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +0.16% | vol $3,709,584 | trades 1857 | fill 100% | Futures Flow (30m): INFLOW $1,857,709 | OUTFLOW $1,851,876 | NET $+5,833 | Futures Size (30m): whale $+298,399 | mid $-208,861 | retail $-83,706 | avg trade $1,998 | source WHALE vs RETAIL divergence (whale 5116% of net) | Futures CVD% (1h): -3.06% | vol $6,943,293 | trades 3851 | fill 100% | Futures Flow (1h): INFLOW $3,365,437 | OUTFLOW $3,577,856 | NET $-212,419 | Futures Size (1h): whale $-108,741 | mid $-91,325 | retail $-12,353 | avg trade $1,803 | source MIXED (whale -51% of net) | Futures CVD% (15m): -11.83% | NET $-204,154 | fill 100% | Futures OBI: now +0.1363 | spread 1.73 bps | price 0.05767 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 15348 msgs (last 0.8s) | book 75461 msgs (last 0.1s)
+2026-11-27 04:11:01,692 INFO [SEIUSDT] SEIUSDT FLOW BUY [4h_choch] | Symbol: SEIUSDT | Rule: 4h_choch CONFLUENCE | Direction: BUY | Stage: BUILDING | Trend Filter: 4h CHoCH | Current Price: 0.03906 | CVD% (30m): +19.03% | move +1.40% | VWAP dist +0.91% | vol 92,986 | trades 1002 | Flow (30m): INFLOW $55,339 | OUTFLOW $37,647 | NET $+17,692 | Size (30m): whale $+0 | mid $+7,906 | retail $+9,787 | avg trade $93 | CVD% (1h): +3.14% | move +1.59% | VWAP dist +1.29% | vol 178,842 | trades 1743 | Flow (1h): INFLOW $92,232 | OUTFLOW $86,610 | NET $+5,622 | Size (1h): whale $-2,092 | mid $-357 | retail $+8,071 | avg trade $103 | CVD% (15m): +29.47% | Flow (15m): INFLOW $33,616 | OUTFLOW $18,312 | NET $+15,304 | Flow accel (15m/30m): 1.55x [ACCELERATING] | Flow source: RETAIL-DRIVEN (chop risk) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.2039 | now +0.1435 | Lead score: 13.6 | Spread bps: 2.56 | Footprint: row 1e-05, ratio 999.00x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 04:11:01 AM | Alert Time (PKT): 2026-11-27 09:11:01 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +1.53% | 1h +2.17% | funding -0.0032% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (35.2h ago, level 0.03261, close 0.0327); 4h Bullish CHoCH (16.2h ago, level 0.03732, close 0.03853); [opposite] 1d Bearish CHoCH (1204.2h ago, level 0.06674, close 0.06611) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 64%) | Futures CVD% (30m): +38.11% | vol $288,209 | trades 1093 | fill 100% | Futures Flow (30m): INFLOW $199,019 | OUTFLOW $89,190 | NET $+109,829 | Futures Size (30m): whale $+40,214 | mid $+50,059 | retail $+19,557 | avg trade $264 | source MIXED (whale 37% of net) | Futures CVD% (1h): +22.54% | vol $534,298 | trades 2130 | fill 100% | Futures Flow (1h): INFLOW $327,361 | OUTFLOW $206,937 | NET $+120,425 | Futures Size (1h): whale $+35,284 | mid $+72,118 | retail $+13,022 | avg trade $251 | source MIXED (whale 29% of net) | Futures CVD% (15m): +48.69% | NET $+96,118 | fill 100% | Futures OBI: now +0.2739 | spread 2.57 bps | price 0.03899 | Futures gate: ALIGNED (aligned) [observe-only] | Futures feed: trades 7325 msgs (last 5.0s) | book 53147 msgs (last 0.0s)
+2026-11-27 04:11:11,496 INFO [ENGINE] State saved | alerts_today=18 connected=True
+2026-11-27 04:11:23,704 INFO [HYPEUSDT] HYPEUSDT FLOW BUY [4h_choch] | Symbol: HYPEUSDT | Rule: 4h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 4h CHoCH | Current Price: 66.22 | CVD% (30m): +4.45% | move +0.24% | VWAP dist +0.34% | vol 1,098,872 | trades 1747 | Flow (30m): INFLOW $573,908 | OUTFLOW $524,963 | NET $+48,945 | Size (30m): whale $+106,563 | mid $-122,307 | retail $+64,689 | avg trade $629 | CVD% (1h): +3.57% | move +0.11% | VWAP dist +0.15% | vol 4,173,278 | trades 6097 | Flow (1h): INFLOW $2,161,114 | OUTFLOW $2,012,164 | NET $+148,951 | Size (1h): whale $+188,846 | mid $-312,596 | retail $+272,701 | avg trade $684 | CVD% (15m): +21.59% | Flow (15m): INFLOW $277,773 | OUTFLOW $179,139 | NET $+98,634 | Flow accel (15m/30m): 4.85x [ACCELERATING] | Flow source: WHALE-DRIVEN (218% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.0403 | now +0.0139 | Lead score: 18.4 | Spread bps: 1.51 | Footprint: row 0.02, ratio 5.55x, stacked x4, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 04:11:23 AM | Alert Time (PKT): 2026-11-27 09:11:23 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.23% | 1h +1.26% | funding +0.0100% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (8.2h ago, level 62.16, close 63.19); 4h Bullish CHoCH (4.2h ago, level 63.03, close 66.1); [opposite] 1d Bearish CHoCH (460.2h ago, level 76.25, close 74.56) | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +1.49% | vol $4,266,948 | trades 14357 | fill 100% | Futures Flow (30m): INFLOW $2,165,168 | OUTFLOW $2,101,780 | NET $+63,388 | Futures Size (30m): whale $+217,774 | mid $-95,060 | retail $-59,326 | avg trade $297 | source WHALE vs RETAIL divergence (whale 344% of net) | Futures CVD% (1h): -6.21% | vol $17,214,624 | trades 45653 | fill 100% | Futures Flow (1h): INFLOW $8,073,167 | OUTFLOW $9,141,457 | NET $-1,068,290 | Futures Size (1h): whale $-30,358 | mid $-905,713 | retail $-132,218 | avg trade $377 | source MIXED (whale -3% of net) | Futures CVD% (15m): -6.79% | NET $-124,441 | fill 100% | Futures OBI: now +0.8511 | spread 0.15 bps | price 66.2 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 123250 msgs (last 0.7s) | book 76401 msgs (last 0.1s)
+2026-11-27 04:12:12,229 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:13:12,943 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:14:13,690 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:15:14,425 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:16:15,177 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:17:15,903 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:18:16,647 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:19:17,378 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:20:18,112 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:21:18,843 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:22:19,562 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:23:20,290 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:24:21,040 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:25:21,771 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:26:22,517 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:27:23,261 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:28:23,998 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:29:24,741 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:30:25,483 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:31:26,230 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:32:26,973 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:33:27,752 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:34:28,502 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:35:29,288 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:36:30,038 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:36:41,989 INFO [DIAG] health: uptime=3.0h msg_rate=189.3/s signals=19 eval_cycles=5396 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 04:36:41,989 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=78% trend_buy_against_1d_bearish=22%
+2026-11-27 04:36:41,989 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=63% already_fired=35% trend_sell_against_1h_bullish=1% trend_buy_against_1h_bearish=1%
+2026-11-27 04:36:41,989 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=63% trend_buy_against_4h_bearish=27% already_fired=10% sym_dup=0% signal=0%
+2026-11-27 04:37:30,826 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:38:31,627 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:39:32,407 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:40:33,169 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:41:33,922 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:42:34,700 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:43:35,445 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:44:36,248 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:45:37,060 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:46:37,862 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:47:38,663 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:48:39,453 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:49:40,250 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:50:41,035 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:51:41,813 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:52:42,589 INFO [ENGINE] State saved | alerts_today=19 connected=True
+2026-11-27 04:53:11,467 INFO [ETHUSDT] ETHUSDT FLOW SELL [4h_choch] | Symbol: ETHUSDT | Rule: 4h_choch CONFLUENCE | Direction: SELL | Stage: EARLY (flow leads price) | Trend Filter: 4h CHoCH | Current Price: 1733.68 | CVD% (30m): -6.59% | move +0.09% | VWAP dist -0.20% | vol 9,807,630 | trades 9968 | Flow (30m): INFLOW $4,580,791 | OUTFLOW $5,226,839 | NET $-646,048 | Size (30m): whale $-749,989 | mid $+191,601 | retail $-87,661 | avg trade $984 | CVD% (1h): -3.60% | move +0.15% | VWAP dist -0.07% | vol 14,853,411 | trades 17975 | Flow (1h): INFLOW $7,159,271 | OUTFLOW $7,694,141 | NET $-534,870 | Size (1h): whale $-646,362 | mid $+160,465 | retail $-48,973 | avg trade $826 | CVD% (15m): -4.85% | Flow (15m): INFLOW $3,791,751 | OUTFLOW $4,178,349 | NET $-386,598 | Flow accel (15m/30m): 0.74x [STEADY] | Flow source: WHALE-DRIVEN (116% of net) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): -0.4665 | now -0.7367 | Lead score: 76.1 | Spread bps: 0.06 | Footprint: row 0.52, ratio 0.14x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 04:53:11 AM | Alert Time (PKT): 2026-11-27 09:53:11 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.02% | 1h +1.15% | funding +0.0058% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: [opposite] 1h Bullish CHoCH (35.9h ago, level 1665.52, close 1679.15); 4h Bearish CHoCH (48.9h ago, level 1648.35, close 1640.95); 1d Bearish CHoCH (460.9h ago, level 2206.28, close 2127.46) | HTF context: 1w: Bullish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +16.09% | vol $115,367,149 | trades 35375 | fill 100% | Futures Flow (30m): INFLOW $66,963,595 | OUTFLOW $48,403,554 | NET $+18,560,041 | Futures Size (30m): whale $-11,220,744 | mid $-7,716,756 | retail $+377,459 | avg trade $3,261 | source MIXED (whale -60% of net) | Futures CVD% (1h): +11.55% | vol $183,680,426 | trades 59670 | fill 100% | Futures Flow (1h): INFLOW $102,444,013 | OUTFLOW $81,236,413 | NET $+21,207,600 | Futures Size (1h): whale $-16,363,114 | mid $-6,245,838 | retail $+1,401,352 | avg trade $3,078 | source MIXED (whale -77% of net) | Futures CVD% (15m): +14.97% | NET $+13,250,023 | fill 100% | Futures OBI: now -0.4307 | spread 0.06 bps | price 1732.83 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 354404 msgs (last 0.4s) | book 114266 msgs (last 0.1s)
+2026-11-27 04:53:43,390 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 04:54:44,166 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 04:55:44,940 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 04:56:45,743 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 04:57:46,533 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 04:58:47,350 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 04:59:48,130 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 05:00:06,967 INFO [CHOCH] SOLUSDT 1h BULLISH CHoCH | level 69.03000000 close 69.44000000
+2026-11-27 05:00:07,012 INFO [CHOCH] ETHUSDT 1h BULLISH CHoCH | level 1665.52000000 close 1679.15000000
+2026-11-27 05:00:07,016 INFO [CHOCH] BTCUSDT 1h BULLISH CHoCH | level 59489.63000000 close 59603.25000000
+2026-11-27 05:00:07,025 INFO [CHOCH] ZECUSDT 1h BULLISH CHoCH | level 744.43000000 close 749.76000000
+2026-11-27 05:00:07,562 INFO [CHOCH] XRPUSDT 1h BULLISH CHoCH | level 0.92740000 close 0.92880000
+2026-11-27 05:00:07,568 INFO [CHOCH] NEARUSDT 1h BULLISH CHoCH | level 2.90600000 close 2.92000000
+2026-11-27 05:00:07,599 INFO [CHOCH] BNBUSDT 1h BULLISH CHoCH | level 544.92000000 close 548.50000000
+2026-11-27 05:00:07,687 INFO [CHOCH] HYPEUSDT 1h BULLISH CHoCH | level 62.16000000 close 63.19000000
+2026-11-27 05:00:07,961 INFO [CHOCH] PEPEUSDT 1h BULLISH CHoCH | level 0.00000355 close 0.00000356
+2026-11-27 05:00:08,036 INFO [CHOCH] SUIUSDT 1h BULLISH CHoCH | level 0.67720000 close 0.68020000
+2026-11-27 05:00:08,058 INFO [CHOCH] UNIUSDT 1h BULLISH CHoCH | level 4.73500000 close 4.82600000
+2026-11-27 05:00:08,125 INFO [CHOCH] TRXUSDT 1h BULLISH CHoCH | level 0.30420000 close 0.30430000
+2026-11-27 05:00:08,328 INFO [CHOCH] DOGEUSDT 1h BULLISH CHoCH | level 0.05724000 close 0.05750000
+2026-11-27 05:00:08,401 INFO [CHOCH] ADAUSDT 1h BULLISH CHoCH | level 0.14620000 close 0.14630000
+2026-11-27 05:00:08,424 INFO [CHOCH] LTCUSDT 1h BULLISH CHoCH | level 41.04000000 close 41.78000000
+2026-11-27 05:00:08,491 INFO [CHOCH] ENAUSDT 1h BEARISH CHoCH | level 0.09870000 close 0.09860000
+2026-11-27 05:00:08,694 INFO [CHOCH] LINKUSDT 1h BULLISH CHoCH | level 8.93600000 close 8.98000000
+2026-11-27 05:00:08,766 INFO [CHOCH] SEIUSDT 1h BULLISH CHoCH | level 0.03261000 close 0.03270000
+2026-11-27 05:00:08,790 INFO [CHOCH] AAVEUSDT 1h BULLISH CHoCH | level 95.81000000 close 96.16000000
+2026-11-27 05:00:08,857 INFO [CHOCH] SSVUSDT 1h BULLISH CHoCH | level 1.61100000 close 1.61300000
+2026-11-27 05:00:48,906 INFO [ENGINE] State saved | alerts_today=20 connected=True
+2026-11-27 05:01:15,803 INFO [LTCUSDT] LTCUSDT FLOW BUY [1h_choch] | Symbol: LTCUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 44.72 | CVD% (30m): +14.52% | move +0.38% | VWAP dist +0.29% | vol 198,579 | trades 736 | Flow (30m): INFLOW $113,710 | OUTFLOW $84,869 | NET $+28,841 | Size (30m): whale $+0 | mid $+472 | retail $+28,368 | avg trade $270 | CVD% (1h): +3.19% | move +0.68% | VWAP dist +0.40% | vol 437,213 | trades 1432 | Flow (1h): INFLOW $225,578 | OUTFLOW $211,635 | NET $+13,942 | Size (1h): whale $-20,383 | mid $+20,101 | retail $+14,224 | avg trade $305 | CVD% (15m): +41.15% | Flow (15m): INFLOW $46,426 | OUTFLOW $19,356 | NET $+27,070 | Flow accel (15m/30m): 2.83x [ACCELERATING] | Flow source: RETAIL-DRIVEN (chop risk) | Pressure test: CONFIRMED - flow and price agree | OBI (short): +0.2933 | now +0.3019 | Lead score: 38.1 | Spread bps: 2.24 | Footprint: row 0.01, ratio 999.00x, stacked x2, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 05:01:15 AM | Alert Time (PKT): 2026-11-27 10:01:15 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.30% | 1h -0.46% | funding +0.0029% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (36.0h ago, level 41.04, close 41.78); 4h Bullish CHoCH (97.0h ago, level 40.53, close 40.57); [opposite] 1d Bearish CHoCH (1757.0h ago, level 51.62, close 51.27) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +3.46% | vol $326,573 | trades 387 | fill 100% | Futures Flow (30m): INFLOW $168,930 | OUTFLOW $157,642 | NET $+11,288 | Futures Size (30m): whale $-23,651 | mid $+30,214 | retail $+4,724 | avg trade $844 | source MIXED (whale -210% of net) | Futures CVD% (1h): -5.90% | vol $576,303 | trades 793 | fill 100% | Futures Flow (1h): INFLOW $271,153 | OUTFLOW $305,150 | NET $-33,997 | Futures Size (1h): whale $-20,104 | mid $-7,696 | retail $-6,198 | avg trade $727 | source MIXED (whale -59% of net) | Futures CVD% (15m): +52.53% | NET $+83,192 | fill 100% | Futures OBI: now +0.1932 | spread 2.24 bps | price 44.67 | Futures gate: BLOCKED (weak_1h_cvd) [observe-only] | Futures feed: trades 5628 msgs (last 2.0s) | book 56567 msgs (last 0.0s)
+2026-11-27 05:01:49,648 INFO [ENGINE] State saved | alerts_today=21 connected=True
+2026-11-27 05:01:51,832 INFO [BTCUSDT] BTCUSDT FLOW BUY [1h_choch] | Symbol: BTCUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 61511.91 | CVD% (30m): +10.19% | move +0.03% | VWAP dist -0.04% | vol 10,802,089 | trades 14275 | Flow (30m): INFLOW $5,951,416 | OUTFLOW $4,850,673 | NET $+1,100,742 | Size (30m): whale $+663,781 | mid $-230,820 | retail $+667,781 | avg trade $757 | CVD% (1h): +12.17% | move +0.10% | VWAP dist +0.01% | vol 19,158,176 | trades 30692 | Flow (1h): INFLOW $10,744,619 | OUTFLOW $8,413,558 | NET $+2,331,061 | Size (1h): whale $+1,220,707 | mid $-652,218 | retail $+1,762,571 | avg trade $624 | CVD% (15m): +9.93% | Flow (15m): INFLOW $2,259,153 | OUTFLOW $1,850,883 | NET $+408,270 | Flow accel (15m/30m): 0.97x [STEADY] | Flow source: WHALE-DRIVEN (60% of net) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): +0.0355 | now +0.8982 | Lead score: 203.8 | Spread bps: 0.00 | Footprint: row 18.44, ratio 12.68x, stacked x3, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 05:01:51 AM | Alert Time (PKT): 2026-11-27 10:01:51 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.03% | 1h +0.49% | funding +0.0096% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (36.0h ago, level 59489.6, close 59603.2); [opposite] 4h Bearish CHoCH (49.0h ago, level 58768.5, close 58738.3); [opposite] 1d Bearish CHoCH (1757.0h ago, level 76264, close 75644.5) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +6.19% | vol $68,047,719 | trades 27096 | fill 100% | Futures Flow (30m): INFLOW $36,130,096 | OUTFLOW $31,917,623 | NET $+4,212,472 | Futures Size (30m): whale $+3,598,934 | mid $+2,781,949 | retail $-2,168,410 | avg trade $2,511 | source WHALE vs RETAIL divergence (whale 85% of net) | Futures CVD% (1h): +8.28% | vol $127,521,129 | trades 50297 | fill 100% | Futures Flow (1h): INFLOW $69,040,925 | OUTFLOW $58,480,204 | NET $+10,560,721 | Futures Size (1h): whale $+10,603,705 | mid $+4,287,231 | retail $-4,330,214 | avg trade $2,535 | source WHALE vs RETAIL divergence (whale 100% of net) | Futures CVD% (15m): -13.94% | NET $-3,440,690 | fill 100% | Futures OBI: now -0.0265 | spread 0.02 bps | price 61490.8 | Futures gate: BLOCKED (weak_15m_cvd) [observe-only] | Futures feed: trades 379816 msgs (last 0.4s) | book 111917 msgs (last 0.0s)
+2026-11-27 05:02:50,409 INFO [ENGINE] State saved | alerts_today=22 connected=True
+2026-11-27 05:03:51,162 INFO [ENGINE] State saved | alerts_today=22 connected=True
+2026-11-27 05:04:51,954 INFO [ENGINE] State saved | alerts_today=22 connected=True
+2026-11-27 05:05:25,979 INFO [TRXUSDT] TRXUSDT FLOW BUY [4h_choch] | Symbol: TRXUSDT | Rule: 4h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 4h CHoCH | Current Price: 0.3054 | CVD% (30m): +47.77% | move +0.03% | VWAP dist +0.02% | vol 138,688 | trades 757 | Flow (30m): INFLOW $102,471 | OUTFLOW $36,217 | NET $+66,255 | Size (30m): whale $+5,000 | mid $+13,311 | retail $+47,943 | avg trade $183 | CVD% (1h): +18.19% | move +0.16% | VWAP dist +0.08% | vol 441,771 | trades 1919 | Flow (1h): INFLOW $261,055 | OUTFLOW $180,716 | NET $+80,339 | Size (1h): whale $-27,018 | mid $+49,825 | retail $+57,531 | avg trade $230 | CVD% (15m): +32.06% | Flow (15m): INFLOW $31,201 | OUTFLOW $16,051 | NET $+15,150 | Flow accel (15m/30m): 0.67x [STEADY] | Flow source: RETAIL-DRIVEN (chop risk) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): +0.1414 | now +0.1459 | Lead score: 955.4 | Spread bps: 3.27 | Footprint: row 0.0001, ratio 446.40x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 05:05:25 AM | Alert Time (PKT): 2026-11-27 10:05:25 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.02% | 1h -0.10% | funding +0.0078% | flat | Trend (1H): Bullish | Trend (4H): Bullish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (9.1h ago, level 0.3042, close 0.3043); 4h Bullish CHoCH (5.1h ago, level 0.3049, close 0.3052); [opposite] 1d Bearish CHoCH (677.1h ago, level 0.3277, close 0.3272) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +22.14% | vol $86,759 | trades 344 | fill 100% | Futures Flow (30m): INFLOW $52,984 | OUTFLOW $33,775 | NET $+19,209 | Futures Size (30m): whale $-0 | mid $+13,707 | retail $+5,503 | avg trade $252 | source RETAIL-DRIVEN (chop risk) | Futures CVD% (1h): -1.95% | vol $226,948 | trades 786 | fill 100% | Futures Flow (1h): INFLOW $111,263 | OUTFLOW $115,685 | NET $-4,423 | Futures Size (1h): whale $-17,592 | mid $+9,886 | retail $+3,284 | avg trade $289 | source MIXED (whale -398% of net) | Futures CVD% (15m): -15.68% | NET $-3,148 | fill 100% | Futures OBI: now +0.1865 | spread 0.33 bps | price 0.30527 | Futures gate: BLOCKED (weak_1h_cvd) [observe-only] | Futures feed: trades 5952 msgs (last 16.9s) | book 36821 msgs (last 0.4s)
+2026-11-27 05:05:52,721 INFO [ENGINE] State saved | alerts_today=23 connected=True
+2026-11-27 05:06:41,990 INFO [DIAG] health: uptime=3.5h msg_rate=188.0/s signals=23 eval_cycles=6295 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 05:06:41,990 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=82% trend_buy_against_1d_bearish=18%
+2026-11-27 05:06:41,990 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=76% already_fired=22% trend_sell_against_1h_bullish=2% trend_1h_refresh_pending=0% signal=0%
+2026-11-27 05:06:41,990 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=76% trend_buy_against_4h_bearish=16% already_fired=7% sym_dup=1% signal=0%
+2026-11-27 05:06:52,034 INFO [AAVEUSDT] AAVEUSDT FLOW SELL [4h_choch] | Symbol: AAVEUSDT | Rule: 4h_choch CONFLUENCE | Direction: SELL | Stage: COUNTER-MOVE (price against flow) | Trend Filter: 4h CHoCH | Current Price: 97.21 | CVD% (30m): -17.44% | move +0.58% | VWAP dist +0.27% | vol 218,223 | trades 770 | Flow (30m): INFLOW $90,084 | OUTFLOW $128,139 | NET $-38,055 | Size (30m): whale $-9,907 | mid $-39,456 | retail $+11,308 | avg trade $283 | CVD% (1h): -16.62% | move +0.74% | VWAP dist +0.56% | vol 397,021 | trades 1620 | Flow (1h): INFLOW $165,508 | OUTFLOW $231,512 | NET $-66,004 | Size (1h): whale $-9,530 | mid $-82,987 | retail $+26,512 | avg trade $245 | CVD% (15m): -40.14% | Flow (15m): INFLOW $42,090 | OUTFLOW $98,533 | NET $-56,443 | Flow accel (15m/30m): 2.30x [ACCELERATING] | Flow source: WHALE vs RETAIL divergence (whale 26% of net) | Pressure test: ABSORPTION - flow is losing, bigger player opposite | OBI (short): -0.0307 | now -0.2471 | Lead score: 30.1 | Spread bps: 1.03 | Footprint: row 0.03, ratio 5.83x, stacked x3, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 05:06:52 AM | Alert Time (PKT): 2026-11-27 10:06:52 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.19% | 1h -0.52% | funding -0.0141% | SHORT COVERING (weak) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: [opposite] 1h Bullish CHoCH (3.1h ago, level 95.81, close 96.16); 4h Bearish CHoCH (73.1h ago, level 95.56, close 95.5); 1d Bearish CHoCH (1109.1h ago, level 159.85, close 156.93) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +20.13% | vol $487,176 | trades 1865 | fill 100% | Futures Flow (30m): INFLOW $292,624 | OUTFLOW $194,553 | NET $+98,071 | Futures Size (30m): whale $-50,056 | mid $-19,201 | retail $-28,814 | avg trade $261 | source MIXED (whale -51% of net) | Futures CVD% (1h): +20.92% | vol $959,178 | trades 4436 | fill 100% | Futures Flow (1h): INFLOW $579,929 | OUTFLOW $379,249 | NET $+200,680 | Futures Size (1h): whale $-107,351 | mid $-6,436 | retail $-86,893 | avg trade $216 | source MIXED (whale -53% of net) | Futures CVD% (15m): +28.65% | NET $+79,169 | fill 100% | Futures OBI: now -0.2252 | spread 1.03 bps | price 97.18 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 21489 msgs (last 2.1s) | book 81200 msgs (last 0.0s)
+2026-11-27 05:06:53,526 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:07:54,313 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:08:55,076 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:09:55,876 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:10:56,683 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:11:57,459 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:12:58,270 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:13:59,057 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:14:59,821 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:16:00,621 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:17:01,403 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:18:02,172 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:19:02,957 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:20:03,741 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:21:04,567 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:22:05,375 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:23:06,186 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:24:06,995 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:25:07,791 INFO [ENGINE] State saved | alerts_today=24 connected=True
+2026-11-27 05:25:34,802 INFO [BTCUSDT] BTCUSDT FLOW SELL [4h_choch] | Symbol: BTCUSDT | Rule: 4h_choch CONFLUENCE | Direction: SELL | Stage: COUNTER-MOVE (price against flow) | Trend Filter: 4h CHoCH | Current Price: 61737.56 | CVD% (30m): -9.31% | move +0.53% | VWAP dist +0.16% | vol 21,961,165 | trades 26873 | Flow (30m): INFLOW $9,958,635 | OUTFLOW $12,002,530 | NET $-2,043,895 | Size (30m): whale $-780,939 | mid $-2,607,206 | retail $+1,344,250 | avg trade $817 | CVD% (1h): -3.09% | move +0.43% | VWAP dist +0.20% | vol 31,866,100 | trades 40128 | Flow (1h): INFLOW $15,441,081 | OUTFLOW $16,425,019 | NET $-983,939 | Size (1h): whale $-319,824 | mid $-2,486,068 | retail $+1,821,954 | avg trade $794 | CVD% (15m): -19.44% | Flow (15m): INFLOW $3,501,496 | OUTFLOW $5,191,511 | NET $-1,690,015 | Flow accel (15m/30m): 2.09x [ACCELERATING] | Flow source: WHALE vs RETAIL divergence (whale 38% of net) | Pressure test: ABSORPTION - flow is losing, bigger player opposite | OBI (short): -0.2742 | now +0.4813 | Lead score: 17.6 | Spread bps: 0.00 | Footprint: row 18.53, ratio 2.12x, stacked x1, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 05:25:34 AM | Alert Time (PKT): 2026-11-27 10:25:34 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.37% | 1h +0.44% | funding +0.0096% | NEW LONGS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: [opposite] 1h Bullish CHoCH (36.4h ago, level 59489.6, close 59603.2); 4h Bearish CHoCH (49.4h ago, level 58768.5, close 58738.3); 1d Bearish CHoCH (1757.4h ago, level 76264, close 75644.5) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +11.05% | vol $115,413,651 | trades 45552 | fill 100% | Futures Flow (30m): INFLOW $64,084,874 | OUTFLOW $51,328,777 | NET $+12,756,097 | Futures Size (30m): whale $-11,172,313 | mid $-4,648,322 | retail $+3,064,537 | avg trade $2,534 | source MIXED (whale -88% of net) | Futures CVD% (1h): +8.45% | vol $178,274,546 | trades 71921 | fill 100% | Futures Flow (1h): INFLOW $96,672,192 | OUTFLOW $81,602,353 | NET $+15,069,839 | Futures Size (1h): whale $-15,295,447 | mid $-5,231,188 | retail $+5,456,796 | avg trade $2,479 | source MIXED (whale -101% of net) | Futures CVD% (15m): +3.59% | NET $+1,927,096 | fill 100% | Futures OBI: now +0.1545 | spread 0.02 bps | price 61714.1 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 420609 msgs (last 0.1s) | book 125338 msgs (last 0.0s)
+2026-11-27 05:26:08,583 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:27:09,383 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:28:10,200 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:29:11,007 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:30:11,827 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:31:12,651 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:32:13,482 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:33:14,291 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:34:15,105 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:35:15,926 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:36:16,733 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:36:41,991 INFO [DIAG] health: uptime=4.0h msg_rate=186.2/s signals=25 eval_cycles=7195 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 05:36:41,991 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=71% trend_buy_against_1d_bearish=29%
+2026-11-27 05:36:41,991 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=66% already_fired=32% trend_buy_against_1h_bearish=1% trend_sell_against_1h_bullish=1%
+2026-11-27 05:36:41,991 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=66% trend_buy_against_4h_bearish=20% already_fired=13% sym_dup=1% signal=0%
+2026-11-27 05:37:17,541 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:38:18,345 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:39:19,154 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:40:19,964 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:41:20,779 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:42:21,605 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:43:22,425 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:44:23,241 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:45:24,043 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:46:24,882 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:47:25,692 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:48:26,490 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:49:27,296 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:50:28,102 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:51:28,910 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:52:29,724 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:53:30,531 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:54:31,347 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:55:32,172 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:56:33,001 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:57:33,810 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:58:34,620 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 05:59:35,418 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:00:07,463 INFO [CHOCH] ETHUSDT 1h BULLISH CHoCH | level 1665.52000000 close 1679.15000000
+2026-11-27 06:00:07,481 INFO [CHOCH] BTCUSDT 1h BULLISH CHoCH | level 59489.63000000 close 59603.25000000
+2026-11-27 06:00:07,496 INFO [CHOCH] ZECUSDT 1h BULLISH CHoCH | level 744.43000000 close 749.76000000
+2026-11-27 06:00:07,538 INFO [CHOCH] SOLUSDT 1h BULLISH CHoCH | level 69.03000000 close 69.44000000
+2026-11-27 06:00:07,871 INFO [CHOCH] XRPUSDT 1h BULLISH CHoCH | level 0.92740000 close 0.92880000
+2026-11-27 06:00:07,910 INFO [CHOCH] NEARUSDT 1h BULLISH CHoCH | level 2.90600000 close 2.92000000
+2026-11-27 06:00:07,941 INFO [CHOCH] BNBUSDT 1h BULLISH CHoCH | level 544.92000000 close 548.50000000
+2026-11-27 06:00:07,987 INFO [CHOCH] HYPEUSDT 1h BULLISH CHoCH | level 62.16000000 close 63.19000000
+2026-11-27 06:00:08,248 INFO [CHOCH] PEPEUSDT 1h BULLISH CHoCH | level 0.00000355 close 0.00000356
+2026-11-27 06:00:08,278 INFO [CHOCH] SUIUSDT 1h BULLISH CHoCH | level 0.67720000 close 0.68020000
+2026-11-27 06:00:08,315 INFO [CHOCH] UNIUSDT 1h BULLISH CHoCH | level 4.73500000 close 4.82600000
+2026-11-27 06:00:08,351 INFO [CHOCH] TRXUSDT 1h BULLISH CHoCH | level 0.30420000 close 0.30430000
+2026-11-27 06:00:08,615 INFO [CHOCH] DOGEUSDT 1h BULLISH CHoCH | level 0.05724000 close 0.05750000
+2026-11-27 06:00:08,642 INFO [CHOCH] ADAUSDT 1h BULLISH CHoCH | level 0.14620000 close 0.14630000
+2026-11-27 06:00:08,681 INFO [CHOCH] LTCUSDT 1h BULLISH CHoCH | level 41.04000000 close 41.78000000
+2026-11-27 06:00:08,715 INFO [CHOCH] ENAUSDT 1h BEARISH CHoCH | level 0.09870000 close 0.09860000
+2026-11-27 06:00:08,980 INFO [CHOCH] LINKUSDT 1h BULLISH CHoCH | level 8.93600000 close 8.98000000
+2026-11-27 06:00:09,006 INFO [CHOCH] SEIUSDT 1h BULLISH CHoCH | level 0.03261000 close 0.03270000
+2026-11-27 06:00:09,052 INFO [CHOCH] AAVEUSDT 1h BULLISH CHoCH | level 95.81000000 close 96.16000000
+2026-11-27 06:00:09,078 INFO [CHOCH] SSVUSDT 1h BEARISH CHoCH | level 2.67900000 close 2.66000000
+2026-11-27 06:00:36,233 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:01:37,051 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:02:37,849 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:03:38,654 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:04:39,463 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:05:40,283 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:06:41,093 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:06:41,991 INFO [DIAG] health: uptime=4.5h msg_rate=156.3/s signals=25 eval_cycles=8094 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 06:06:41,991 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=70% trend_buy_against_1d_bearish=30%
+2026-11-27 06:06:41,991 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=72% already_fired=26% trend_buy_against_1h_bearish=2% trend_1h_refresh_pending=0%
+2026-11-27 06:06:41,991 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=72% trend_buy_against_4h_bearish=17% already_fired=11%
+2026-11-27 06:07:41,902 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:08:42,716 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:09:43,570 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:10:44,363 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:11:45,185 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:12:45,985 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:13:46,795 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:14:47,604 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:15:48,444 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:16:49,243 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:17:50,055 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:18:50,864 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:19:51,656 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:20:52,475 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:21:53,300 INFO [ENGINE] State saved | alerts_today=25 connected=True
+2026-11-27 06:22:47,087 INFO [LINKUSDT] LINKUSDT FLOW SELL [4h_choch] | Symbol: LINKUSDT | Rule: 4h_choch CONFLUENCE | Direction: SELL | Stage: EARLY (flow leads price) | Trend Filter: 4h CHoCH | Current Price: 9.626 | CVD% (30m): -15.79% | move -0.30% | VWAP dist -0.51% | vol 358,431 | trades 1263 | Flow (30m): INFLOW $150,922 | OUTFLOW $207,509 | NET $-56,588 | Size (30m): whale $-27,385 | mid $-19,543 | retail $-9,659 | avg trade $284 | CVD% (1h): -3.27% | move -0.58% | VWAP dist -0.58% | vol 868,382 | trades 3155 | Flow (1h): INFLOW $419,987 | OUTFLOW $448,395 | NET $-28,408 | Size (1h): whale $-10,298 | mid $-7,920 | retail $-10,191 | avg trade $275 | CVD% (15m): -26.36% | Flow (15m): INFLOW $87,923 | OUTFLOW $150,865 | NET $-62,942 | Flow accel (15m/30m): 1.67x [ACCELERATING] | Flow source: MIXED (whale 48% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): -0.0922 | now -0.2260 | Lead score: 52.6 | Spread bps: 1.04 | Footprint: row 0.003, ratio 105.56x, stacked x4, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 06:22:47 AM | Alert Time (PKT): 2026-11-27 11:22:47 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.18% | 1h -1.03% | funding +0.0056% | LONG CLOSING (weak) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: [opposite] 1h Bullish CHoCH (36.4h ago, level 8.936, close 8.98); 4h Bearish CHoCH (50.4h ago, level 8.712, close 8.709); 1d Bearish CHoCH (990.4h ago, level 12.091, close 11.986) | HTF context: 1w: Bullish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): -12.81% | vol $751,004 | trades 1849 | fill 100% | Futures Flow (30m): INFLOW $327,399 | OUTFLOW $423,605 | NET $-96,206 | Futures Size (30m): whale $+55,926 | mid $+24,711 | retail $+15,569 | avg trade $406 | source MIXED (whale 58% of net) | Futures CVD% (1h): -2.18% | vol $1,540,554 | trades 4472 | fill 100% | Futures Flow (1h): INFLOW $753,485 | OUTFLOW $787,069 | NET $-33,584 | Futures Size (1h): whale $+58,029 | mid $-41,238 | retail $+16,793 | avg trade $344 | source WHALE-DRIVEN (173% of net) | Futures CVD% (15m): -29.75% | NET $-122,521 | fill 100% | Futures OBI: now -0.6087 | spread 1.04 bps | price 9.62 | Futures gate: BLOCKED (weak_1h_cvd) [observe-only] | Futures feed: trades 22286 msgs (last 0.4s) | book 115476 msgs (last 0.1s)
+2026-11-27 06:22:54,148 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:23:54,975 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:24:55,803 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:25:56,624 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:26:57,456 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:27:58,260 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:28:59,091 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:29:59,917 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:31:00,742 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:32:01,557 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:33:02,367 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:34:03,185 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:35:03,991 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:36:04,796 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:36:41,992 INFO [DIAG] health: uptime=5.0h msg_rate=146.6/s signals=26 eval_cycles=8994 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 06:36:41,993 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=76% trend_buy_against_1d_bearish=24%
+2026-11-27 06:36:41,993 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=71% already_fired=21% trend_sell_against_1h_bullish=4% trend_buy_against_1h_bearish=4%
+2026-11-27 06:36:41,993 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=71% trend_buy_against_4h_bearish=17% already_fired=12% signal=0%
+2026-11-27 06:37:05,594 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:38:06,408 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:39:07,222 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:40:08,046 INFO [ENGINE] State saved | alerts_today=26 connected=True
+2026-11-27 06:40:41,833 INFO [ZECUSDT] ZECUSDT FLOW SELL [4h_choch] | Symbol: ZECUSDT | Rule: 4h_choch CONFLUENCE | Direction: SELL | Stage: BUILDING | Trend Filter: 4h CHoCH | Current Price: 749.92 | CVD% (30m): -30.48% | move -1.89% | VWAP dist -0.77% | vol 4,479,262 | trades 11836 | Flow (30m): INFLOW $1,556,992 | OUTFLOW $2,922,271 | NET $-1,365,279 | Size (30m): whale $-530,502 | mid $-645,820 | retail $-188,958 | avg trade $378 | CVD% (1h): -22.40% | move -1.14% | VWAP dist -1.03% | vol 6,308,161 | trades 24068 | Flow (1h): INFLOW $2,447,529 | OUTFLOW $3,860,632 | NET $-1,413,104 | Size (1h): whale $-502,671 | mid $-623,988 | retail $-286,445 | avg trade $262 | CVD% (15m): -31.61% | Flow (15m): INFLOW $1,041,763 | OUTFLOW $2,004,681 | NET $-962,918 | Flow accel (15m/30m): 1.04x [STEADY] | Flow source: MIXED (whale 39% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (short): -0.0305 | now -0.8858 | Lead score: 16.1 | Spread bps: 0.40 | Footprint: row 0.23, ratio 10.68x, stacked x5, ok=YES | Sessions: Asia | Alert Time (UTC): 2026-11-27 06:40:41 AM | Alert Time (PKT): 2026-11-27 11:40:41 AM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.18% | 1h +2.25% | funding +0.0004% | NEW SHORTS (strong) | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: [opposite] 1h Bullish CHoCH (36.7h ago, level 744.43, close 749.76); 4h Bearish CHoCH (82.7h ago, level 776.98, close 776.93); 1d Bearish CHoCH (1206.7h ago, level 1271.09, close 1187.02) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): -16.88% | vol $40,657,716 | trades 24901 | fill 100% | Futures Flow (30m): INFLOW $16,898,217 | OUTFLOW $23,759,499 | NET $-6,861,281 | Futures Size (30m): whale $+641,120 | mid $+4,750,488 | retail $+1,469,674 | avg trade $1,633 | source RETAIL-DRIVEN (chop risk) | Futures CVD% (1h): -4.39% | vol $66,414,863 | trades 44262 | fill 100% | Futures Flow (1h): INFLOW $31,748,477 | OUTFLOW $34,666,386 | NET $-2,917,909 | Futures Size (1h): whale $-1,386,262 | mid $+2,575,116 | retail $+1,729,054 | avg trade $1,500 | source MIXED (whale -48% of net) | Futures CVD% (15m): -14.97% | NET $-3,626,782 | fill 100% | Futures OBI: now +0.9979 | spread 0.13 bps | price 749.7 | Futures gate: BLOCKED (weak_obi) [observe-only] | Futures feed: trades 391378 msgs (last 0.2s) | book 170331 msgs (last 0.0s)
+2026-11-27 06:41:08,869 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:42:09,698 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:43:10,558 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:44:11,373 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:45:12,206 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:46:13,014 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:47:13,817 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:48:14,621 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:49:15,447 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:50:16,287 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:51:17,114 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:52:17,940 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:53:18,887 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:54:19,723 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:55:20,579 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:56:21,433 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:57:22,328 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:58:23,169 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 06:59:24,034 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:00:07,483 INFO [CHOCH] SOLUSDT 1h BULLISH CHoCH | level 69.03000000 close 69.44000000
+2026-11-27 07:00:07,538 INFO [CHOCH] ETHUSDT 1h BULLISH CHoCH | level 1665.52000000 close 1679.15000000
+2026-11-27 07:00:07,543 INFO [CHOCH] ZECUSDT 1h BULLISH CHoCH | level 744.43000000 close 749.76000000
+2026-11-27 07:00:07,604 INFO [CHOCH] BTCUSDT 1h BULLISH CHoCH | level 59489.63000000 close 59603.25000000
+2026-11-27 07:00:07,910 INFO [CHOCH] NEARUSDT 1h BULLISH CHoCH | level 2.90600000 close 2.92000000
+2026-11-27 07:00:07,912 INFO [CHOCH] XRPUSDT 1h BULLISH CHoCH | level 0.92740000 close 0.92880000
+2026-11-27 07:00:07,996 INFO [CHOCH] BNBUSDT 1h BULLISH CHoCH | level 544.92000000 close 548.50000000
+2026-11-27 07:00:08,047 INFO [CHOCH] HYPEUSDT 1h BULLISH CHoCH | level 62.16000000 close 63.19000000
+2026-11-27 07:00:08,277 INFO [CHOCH] SUIUSDT 1h BULLISH CHoCH | level 0.67720000 close 0.68020000
+2026-11-27 07:00:08,278 INFO [CHOCH] PEPEUSDT 1h BULLISH CHoCH | level 0.00000355 close 0.00000356
+2026-11-27 07:00:08,363 INFO [CHOCH] UNIUSDT 1h BULLISH CHoCH | level 4.73500000 close 4.82600000
+2026-11-27 07:00:08,412 INFO [CHOCH] TRXUSDT 1h BULLISH CHoCH | level 0.30420000 close 0.30430000
+2026-11-27 07:00:08,644 INFO [CHOCH] DOGEUSDT 1h BULLISH CHoCH | level 0.05724000 close 0.05750000
+2026-11-27 07:00:08,645 INFO [CHOCH] ADAUSDT 1h BULLISH CHoCH | level 0.14620000 close 0.14630000
+2026-11-27 07:00:08,728 INFO [CHOCH] LTCUSDT 1h BULLISH CHoCH | level 41.04000000 close 41.78000000
+2026-11-27 07:00:08,778 INFO [CHOCH] ENAUSDT 1h BEARISH CHoCH | level 0.09870000 close 0.09860000
+2026-11-27 07:00:09,009 INFO [CHOCH] LINKUSDT 1h BULLISH CHoCH | level 8.93600000 close 8.98000000
+2026-11-27 07:00:09,010 INFO [CHOCH] SEIUSDT 1h BULLISH CHoCH | level 0.03261000 close 0.03270000
+2026-11-27 07:00:09,094 INFO [CHOCH] AAVEUSDT 1h BULLISH CHoCH | level 95.81000000 close 96.16000000
+2026-11-27 07:00:09,144 INFO [CHOCH] SSVUSDT 1h BEARISH CHoCH | level 2.67900000 close 2.66000000
+2026-11-27 07:00:24,902 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:01:25,738 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:02:26,596 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:03:27,488 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:04:28,309 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:05:29,127 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:06:29,982 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:06:41,993 INFO [DIAG] health: uptime=5.5h msg_rate=154.2/s signals=27 eval_cycles=9893 eval_errors=0 | state=ACTIVE (active)
+2026-11-27 07:06:41,993 INFO [DIAG] 1d_choch gates over last 30min: flow_weak=81% trend_buy_against_1d_bearish=19%
+2026-11-27 07:06:41,993 INFO [DIAG] 1h_choch gates over last 30min: flow_weak=77% already_fired=17% trend_sell_against_1h_bullish=5% trend_buy_against_1h_bearish=1% trend_1h_refresh_pending=0%
+2026-11-27 07:06:41,993 INFO [DIAG] 4h_choch gates over last 30min: flow_weak=77% already_fired=14% trend_buy_against_4h_bearish=9% signal=0%
+2026-11-27 07:07:30,804 INFO [ENGINE] State saved | alerts_today=27 connected=True
+2026-11-27 07:08:08,963 INFO [ETHUSDT] ETHUSDT FLOW SELL [1d_choch] | Symbol: ETHUSDT | Rule: 1d_choch CONFLUENCE | Direction: SELL | Stage: EARLY (flow leads price) | Trend Filter: 1d CHoCH | Current Price: 1734.29 | CVD% (1h): -37.94% | move -0.34% | VWAP dist -0.19% | vol 19,160,825 | trades 19992 | Flow (1h): INFLOW $5,945,630 | OUTFLOW $13,215,196 | NET $-7,269,566 | Size (1h): whale $-5,119,275 | mid $-1,802,714 | retail $-347,578 | avg trade $958 | CVD% (4h): -8.29% | move +0.29% | VWAP dist -0.24% | vol 71,390,522 | trades 93596 | Flow (4h): INFLOW $32,736,798 | OUTFLOW $38,653,724 | NET $-5,916,926 | Size (4h): whale $-2,624,206 | mid $-3,263,003 | retail $-29,717 | avg trade $763 | CVD% (15m): -4.08% | Flow (15m): INFLOW $1,156,196 | OUTFLOW $1,254,666 | NET $-98,470 | Flow accel (15m/1h): 0.11x [DECAYING (stale window)] | Flow source: WHALE-DRIVEN (70% of net) | Pressure test: CONFIRMED - flow and price agree | OBI (4h): -0.1558 | now -0.6810 | Lead score: 112.9 | Spread bps: 0.06 | Footprint: row 0.52, ratio 4.52x, stacked x1, ok=YES | Sessions: Asia, London | Alert Time (UTC): 2026-11-27 07:08:08 AM | Alert Time (PKT): 2026-11-27 12:08:08 PM | Rule: 1h + 4h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.05% | 1h -0.04% | funding +0.0086% | flat | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: [opposite] 1h Bullish CHoCH (38.1h ago, level 1665.52, close 1679.15); 4h Bearish CHoCH (51.1h ago, level 1648.35, close 1640.95); 1d Bearish CHoCH (463.1h ago, level 2206.28, close 2127.46) | HTF context: 1w: Bullish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (1h): -7.02% | vol $200,670,644 | trades 65502 | fill 100% | Futures Flow (1h): INFLOW $93,291,776 | OUTFLOW $107,378,868 | NET $-14,087,093 | Futures Size (1h): whale $+6,587,645 | mid $+5,277,936 | retail $+2,221,511 | avg trade $3,064 | source MIXED (whale 47% of net) | Futures CVD% (4h): +4.59% | vol $909,017,960 | trades 309115 | fill 100% | Futures Flow (4h): INFLOW $475,380,082 | OUTFLOW $433,637,878 | NET $+41,742,204 | Futures Size (4h): whale $-27,970,707 | mid $-22,470,021 | retail $+8,698,524 | avg trade $2,941 | source MIXED (whale -67% of net) | Futures CVD% (15m): +11.31% | NET $+3,573,785 | fill 100% | Futures OBI: now -0.6465 | spread 0.06 bps | price 1733.66 | Futures gate: BLOCKED (weak_4h_cvd) [observe-only] | Futures feed: trades 548663 msgs (last 0.1s) | book 192425 msgs (last 0.1s)
+2026-11-27 07:08:31,646 INFO [ENGINE] State saved | alerts_today=28 connected=True
+2026-11-27 07:09:32,462 INFO [ENGINE] State saved | alerts_today=28 connected=True
+2026-11-27 07:10:33,285 INFO [ENGINE] State saved | alerts_today=28 connected=True
+2026-11-27 07:11:21,094 INFO [SSVUSDT] SSVUSDT FLOW SELL [1h_choch] | Symbol: SSVUSDT | Rule: 1h_choch CONFLUENCE | Direction: SELL | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 2.605 | CVD% (30m): -37.38% | move +0.08% | VWAP dist +1.23% | vol 172,264 | trades 1253 | Flow (30m): INFLOW $53,933 | OUTFLOW $118,331 | NET $-64,397 | Size (30m): whale $-18,348 | mid $-38,940 | retail $-7,110 | avg trade $137 | CVD% (1h): -31.94% | move -1.59% | VWAP dist +0.61% | vol 302,336 | trades 2424 | Flow (1h): INFLOW $102,879 | OUTFLOW $199,457 | NET $-96,578 | Size (1h): whale $-21,571 | mid $-64,592 | retail $-10,415 | avg trade $125 | CVD% (15m): -65.49% | Flow (15m): INFLOW $20,134 | OUTFLOW $96,543 | NET $-76,409 | Flow accel (15m/30m): 1.75x [ACCELERATING] | Flow source: MIXED (whale 28% of net) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): -0.0320 | now -0.1623 | Lead score: 486.5 | Spread bps: 3.84 | Footprint: row 0.001, ratio 0.24x, stacked x1, ok=YES | Sessions: Asia, London | Alert Time (UTC): 2026-11-27 07:11:21 AM | Alert Time (PKT): 2026-11-27 12:11:21 PM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m -0.97% | 1h -4.19% | funding -0.0399% | LONG CLOSING (weak) | Trend (1H): Bearish | Trend (4H): Bullish | Trend (1D): Bullish | CHoCH context: 1h Bearish CHoCH (2.2h ago, level 2.679, close 2.66); [opposite] 4h Bullish CHoCH (91.2h ago, level 1.622, close 1.648); [opposite] 1d Bullish CHoCH (31.2h ago, level 2.4, close 2.72) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): +0.48% | vol $416,398 | trades 2771 | fill 100% | Futures Flow (30m): INFLOW $209,203 | OUTFLOW $207,195 | NET $+2,008 | Futures Size (30m): whale $-16,183 | mid $+14,746 | retail $-571 | avg trade $150 | source MIXED (whale -806% of net) | Futures CVD% (1h): -1.95% | vol $828,598 | trades 5616 | fill 100% | Futures Flow (1h): INFLOW $406,216 | OUTFLOW $422,382 | NET $-16,166 | Futures Size (1h): whale $-17,006 | mid $+9,870 | retail $+23,302 | avg trade $148 | source MIXED (whale -105% of net) | Futures CVD% (15m): +13.27% | NET $+24,337 | fill 100% | Futures OBI: now +0.0830 | spread 7.69 bps | price 2.601 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 39588 msgs (last 1.1s) | book 148208 msgs (last 0.1s)
+2026-11-27 07:11:34,105 INFO [ENGINE] State saved | alerts_today=29 connected=True
+2026-11-27 07:12:34,929 INFO [ENGINE] State saved | alerts_today=29 connected=True
+2026-11-27 07:13:15,177 INFO [SUIUSDT] SUIUSDT FLOW BUY [1h_choch] | Symbol: SUIUSDT | Rule: 1h_choch CONFLUENCE | Direction: BUY | Stage: EARLY (flow leads price) | Trend Filter: 1h CHoCH | Current Price: 0.6844 | CVD% (30m): +17.15% | move -0.22% | VWAP dist -0.01% | vol 377,193 | trades 813 | Flow (30m): INFLOW $220,950 | OUTFLOW $156,244 | NET $+64,706 | Size (30m): whale $-437 | mid $+54,608 | retail $+10,535 | avg trade $464 | CVD% (1h): +8.94% | move -0.60% | VWAP dist -0.27% | vol 784,928 | trades 1719 | Flow (1h): INFLOW $427,555 | OUTFLOW $357,373 | NET $+70,181 | Size (1h): whale $+16,187 | mid $+66,509 | retail $-12,515 | avg trade $457 | CVD% (15m): +14.86% | Flow (15m): INFLOW $133,908 | OUTFLOW $99,258 | NET $+34,649 | Flow accel (15m/30m): 0.87x [STEADY] | Flow source: RETAIL-DRIVEN (chop risk) | Pressure test: PENDING - flow present, price not responding yet | OBI (short): +0.0300 | now +0.0445 | Lead score: 78.4 | Spread bps: 1.46 | Footprint: row 0.0002, ratio 0.27x, stacked x1, ok=YES | Sessions: Asia, London | Alert Time (UTC): 2026-11-27 07:13:15 AM | Alert Time (PKT): 2026-11-27 12:13:15 PM | Rule: 30m + 1h CVD% + 15m CVD% + OBI alignment | OI (Futures): 15m +0.13% | 1h +0.08% | funding +0.0022% | flat | Trend (1H): Bullish | Trend (4H): Bearish | Trend (1D): Bearish | CHoCH context: 1h Bullish CHoCH (5.2h ago, level 0.6772, close 0.6802); [opposite] 4h Bearish CHoCH (67.2h ago, level 0.6408, close 0.6397); [opposite] 1d Bearish CHoCH (1207.2h ago, level 1.1032, close 1.0408) | HTF context: 1w: Bearish | Futures data: FULL (30m 100%, 1h 100%, 4h 100%) | Futures CVD% (30m): -16.16% | vol $525,679 | trades 1274 | fill 100% | Futures Flow (30m): INFLOW $220,360 | OUTFLOW $305,318 | NET $-84,958 | Futures Size (30m): whale $-6,061 | mid $-79,030 | retail $+133 | avg trade $413 | source MIXED (whale -7% of net) | Futures CVD% (1h): -4.22% | vol $1,161,962 | trades 2302 | fill 100% | Futures Flow (1h): INFLOW $556,447 | OUTFLOW $605,515 | NET $-49,068 | Futures Size (1h): whale $-4,892 | mid $-25,219 | retail $-18,957 | avg trade $505 | source MIXED (whale -10% of net) | Futures CVD% (15m): -21.42% | NET $-67,834 | fill 100% | Futures OBI: now -0.0390 | spread 1.46 bps | price 0.6841 | Futures gate: BLOCKED (weak_30m_cvd) [observe-only] | Futures feed: trades 17400 msgs (last 0.2s) | book 149495 msgs (last 0.2s)
+2026-11-27 07:13:35,812 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:14:36,631 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:15:37,444 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:16:38,296 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:17:39,101 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:18:39,898 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:19:40,705 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:20:41,516 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:21:42,342 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:22:43,148 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:23:43,954 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:24:44,761 INFO [ENGINE] State saved | alerts_today=30 connected=True
+2026-11-27 07:25:45,562 INFO [ENGINE] State saved | alerts_today=30 connected=True
